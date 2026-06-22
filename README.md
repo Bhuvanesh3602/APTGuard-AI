@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="500" height="300" alt="Et-Hack" src="https://github.com/user-attachments/assets/3c6f729f-9547-43bd-a36f-ae1ff8274a1f" />
+<img width="500" height="170" alt="Et-Hack" src="https://github.com/user-attachments/assets/3c6f729f-9547-43bd-a36f-ae1ff8274a1f" />
 
 # AiSOC-CNI
 ### AI-Driven Cyber Resilience for Critical National Infrastructure
