@@ -1,6 +1,6 @@
 <div align="center">
 <div align="center">
-  <img width="100%" alt="AiSOC-CNI Banner" src="https://github.com/user-attachments/assets/826e3423-695d-4095-9095-8b6cb20d0b1b" />
+  <img width="10%" alt="AiSOC-CNI Banner" src="https://github.com/user-attachments/assets/826e3423-695d-4095-9095-8b6cb20d0b1b" />
 </div>
 
 # AiSOC-CNI
