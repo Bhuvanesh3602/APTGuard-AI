@@ -1,7 +1,6 @@
 <div align="center">
-<div align="center">
-  <img width="10%" alt="AiSOC-CNI Banner" src="https://github.com/user-attachments/assets/826e3423-695d-4095-9095-8b6cb20d0b1b" />
-</div>
+<img width="816" height="1440" alt="ET_hack" src="https://github.com/user-attachments/assets/57816c42-092e-46bb-b448-4232ac1beb6c" />
+
 
 # AiSOC-CNI
 ### AI-Driven Cyber Resilience for Critical National Infrastructure
