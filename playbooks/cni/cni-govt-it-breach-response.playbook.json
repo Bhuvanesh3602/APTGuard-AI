@@ -1,0 +1,127 @@
+{
+  "id": "cni-govt-it-breach-response-v1",
+  "name": "CNI Government IT: APT Breach & Data Theft Response",
+  "description": "Response playbook for APT breaches in Indian government IT infrastructure (ministries, state government portals, defence networks). Covers SideCopy and APT36 campaigns targeting government data. Triggers mandatory CERT-In and NCIIPC reporting.",
+  "version": "1.0.0",
+  "tags": ["apt", "government", "cni", "sidecopy", "apt36", "certin.cat2", "nciipc", "india"],
+  "trigger": {
+    "on": "alert",
+    "severity": ["critical", "high"],
+    "tags": ["apt", "cni.government", "data_exfil"]
+  },
+  "author": "AiSOC CNI Team",
+  "enabled": true,
+  "created_at": "2026-06-22T00:00:00+00:00",
+  "updated_at": "2026-06-22T00:00:00+00:00",
+  "steps": [
+    {
+      "id": "classify_data",
+      "name": "Classify data sensitivity of affected systems",
+      "type": "http",
+      "params": {
+        "url": "${API_URL}/api/v1/assets/data-classification",
+        "method": "POST",
+        "body": {"host": "{{alert.host}}", "check_data_types": ["classified", "secret", "sensitive_personal"]}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 15
+    },
+    {
+      "id": "revoke_creds",
+      "name": "Revoke compromised government employee credentials",
+      "type": "disable_user",
+      "params": {
+        "user_field": "alert.username",
+        "action": "disable_and_reset",
+        "scope": "all_sessions",
+        "notify_hr": true
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "isolate_host",
+      "name": "Isolate compromised government workstation",
+      "type": "isolate_host",
+      "params": {
+        "host_field": "alert.host",
+        "allow_management": true
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "block_apt_infra",
+      "name": "Block APT C2 and data exfiltration channels",
+      "type": "block_ip",
+      "params": {
+        "ip_field": "alert.dst_ip",
+        "also_block_domain": true,
+        "blocklists": ["sidecopy_c2", "apt36_c2", "india_apt_iocs"]
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "enable_enhanced_logging",
+      "name": "Enable enhanced audit logging across ministry network",
+      "type": "http",
+      "params": {
+        "url": "${API_URL}/api/v1/actions/audit-policy",
+        "method": "POST",
+        "body": {"policy": "enhanced_government_audit", "retention_days": 365}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "certin_report",
+      "name": "File CERT-In mandatory report (CAT-2 Compromise)",
+      "type": "http",
+      "params": {
+        "url": "${CERTIN_REPORTER_URL}/api/v1/report/submit",
+        "method": "POST",
+        "body": {
+          "category": "CAT-2",
+          "incident_id": "{{alert.id}}",
+          "organisation_type": "government_cni",
+          "classification": "SECRET",
+          "deadline_hours": 6
+        }
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "apt_hunt",
+      "name": "Launch SideCopy/APT36 dwell-time threat hunt",
+      "type": "http",
+      "params": {
+        "url": "${AGENTS_URL}/api/v1/hunt",
+        "method": "POST",
+        "body": {
+          "hunt_name": "india_apt_dwell_time",
+          "actors": ["SideCopy", "APT36"],
+          "techniques": ["T1547.001", "T1059.001", "T1071.001", "T1105"],
+          "lookback_days": 90
+        }
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "notify_leadership",
+      "name": "Notify Ministry CISO and NCIIPC",
+      "type": "notify",
+      "params": {
+        "channels": ["secure_email", "encrypted_sms"],
+        "recipients": ["ministry_ciso", "incident@nciipc.gov.in", "ministry_secretary_it"],
+        "template": "govt_cni_apt_breach",
+        "classification": "CONFIDENTIAL",
+        "priority": "P1"
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    }
+  ]
+}

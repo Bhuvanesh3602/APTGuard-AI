@@ -1,0 +1,131 @@
+{
+  "id": "cni-healthcare-ransomware-response-v1",
+  "name": "CNI Healthcare: Ransomware Response (AIIMS Pattern)",
+  "description": "Immediate response playbook for ransomware in healthcare CNI. Designed for AIIMS-pattern attacks (LockBit/similar). Preserves patient care continuity — isolates administrative systems BEFORE clinical systems to maintain life-critical operations.",
+  "version": "1.0.0",
+  "tags": ["ransomware", "healthcare", "cni", "aiims_pattern", "certin.cat4", "mitre.t1486", "india"],
+  "trigger": {
+    "on": "alert",
+    "severity": ["critical"],
+    "tags": ["ransomware", "cni.healthcare"]
+  },
+  "author": "AiSOC CNI Team",
+  "enabled": true,
+  "created_at": "2026-06-22T00:00:00+00:00",
+  "updated_at": "2026-06-22T00:00:00+00:00",
+  "steps": [
+    {
+      "id": "triage",
+      "name": "Identify affected clinical vs administrative systems",
+      "type": "http",
+      "params": {
+        "url": "${API_URL}/api/v1/assets/classify",
+        "method": "POST",
+        "body": {"host": "{{alert.host}}", "classify_by": "clinical_criticality"}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 15
+    },
+    {
+      "id": "protect_clinical",
+      "name": "Block ransomware spread to clinical systems first",
+      "type": "block_network_segment",
+      "params": {
+        "segment": "clinical_wards",
+        "direction": "inbound",
+        "from_segment": "{{alert.host_segment}}"
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "isolate_admin",
+      "name": "Isolate administrative systems (non-clinical)",
+      "type": "isolate_host",
+      "params": {
+        "host_field": "alert.host",
+        "scope": "administrative_only",
+        "preserve_clinical": true
+      },
+      "on_failure": "abort",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "shadow_copy_check",
+      "name": "Emergency VSS snapshot of patient records",
+      "type": "http",
+      "params": {
+        "url": "${API_URL}/api/v1/actions/snapshot",
+        "method": "POST",
+        "body": {"host": "{{alert.host}}", "priority": "patient_records", "type": "emergency_vss"}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 60
+    },
+    {
+      "id": "block_c2",
+      "name": "Block ransomware C2 and lateral movement",
+      "type": "block_ip",
+      "params": {
+        "ip_field": "alert.dst_ip",
+        "blocklist": "ransomware_c2"
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "certin_notify",
+      "name": "File CERT-In mandatory report (CAT-4 Malicious Code)",
+      "type": "http",
+      "params": {
+        "url": "${CERTIN_REPORTER_URL}/api/v1/report/submit",
+        "method": "POST",
+        "body": {
+          "category": "CAT-4",
+          "incident_id": "{{alert.id}}",
+          "organisation_type": "healthcare_cni",
+          "deadline_hours": 6
+        }
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "notify_mo",
+      "name": "Notify Ministry of Health and NCIIPC",
+      "type": "notify",
+      "params": {
+        "channels": ["email", "sms"],
+        "recipients": ["ciso@mohfw.gov.in", "incident@nciipc.gov.in"],
+        "template": "healthcare_cni_ransomware",
+        "priority": "P1"
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "activate_dr",
+      "name": "Activate paper-based clinical fallback procedures",
+      "type": "notify",
+      "params": {
+        "channels": ["sms", "voice"],
+        "recipients": ["it_director", "medical_superintendent", "duty_officer"],
+        "message": "RANSOMWARE INCIDENT: Activate Paper-Based Clinical Fallback Protocol. Refer to BCP-HC-001."
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "forensic_preserve",
+      "name": "Collect forensic evidence before remediation",
+      "type": "http",
+      "params": {
+        "url": "${API_URL}/api/v1/forensics/collect",
+        "method": "POST",
+        "body": {"host": "{{alert.host}}", "collect": ["memory", "event_logs", "network_connections", "prefetch"]}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 120
+    }
+  ]
+}

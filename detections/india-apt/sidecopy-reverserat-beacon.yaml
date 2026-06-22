@@ -1,0 +1,35 @@
+id: det-iapt-002
+name: SideCopy ReverseRAT Beacon Pattern
+description: >
+  Detects SideCopy group's ReverseRAT beaconing activity targeting Indian defence
+  and government institutions. ReverseRAT uses HTTP polling with base64-encoded
+  payloads and fixed 60-second beacon intervals. Reference: CERT-In CI-2023-0012.
+version: 1.0.0
+severity: critical
+tags:
+  - mitre.t1071.001
+  - mitre.t1027
+  - apt.sidecopy
+  - india.certin.ci2023-0012
+  - cni.defence
+  - cni.government
+category: network
+log_source:
+  product: proxy
+  service: http
+detection:
+  condition: |
+    http_method == "GET"
+    AND response_body_base64_encoded == true
+    AND beacon_interval_seconds BETWEEN 55 AND 65
+    AND dst_country NOT IN ["IN"]
+    AND process_name IN ["svchost.exe", "rundll32.exe", "regsvr32.exe"]
+false_positives:
+  - Legitimate software with fixed polling intervals (allowlist by process hash)
+playbook: cni-govt-it-breach-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'
+references:
+  - https://cert-in.org.in/advisory/CI-2023-0012

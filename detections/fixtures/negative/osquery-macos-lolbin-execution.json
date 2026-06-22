@@ -1,0 +1,4 @@
+{
+  "cmdline": "funzip -tail",
+  "event_type": "not-osquery_query_row"
+}

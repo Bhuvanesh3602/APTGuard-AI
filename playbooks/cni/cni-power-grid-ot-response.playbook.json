@@ -1,0 +1,111 @@
+{
+  "id": "cni-power-grid-ot-response-v1",
+  "name": "CNI Power Grid: OT/ICS Attack Response",
+  "description": "OT-safe response playbook for cyberattacks on India's power grid infrastructure (NTPC/PGCIL/state DISCOMs). Critically: NEVER isolates OT hosts directly — only applies network-layer segmentation to avoid triggering physical process disruption, load shedding, or grid instability.",
+  "version": "1.0.0",
+  "tags": ["ot", "power_grid", "cni", "volt_typhoon", "nciipc.mandatory", "mitre.ics.t0826", "india"],
+  "trigger": {
+    "on": "alert",
+    "severity": ["critical", "high"],
+    "tags": ["ot", "cni.power_grid", "scada"]
+  },
+  "author": "AiSOC CNI Team",
+  "enabled": true,
+  "created_at": "2026-06-22T00:00:00+00:00",
+  "updated_at": "2026-06-22T00:00:00+00:00",
+  "steps": [
+    {
+      "id": "ot_classify",
+      "name": "Classify OT asset criticality and running process state",
+      "type": "http",
+      "params": {
+        "url": "${OT_CONNECTOR_URL}/api/v1/assets/classify",
+        "method": "POST",
+        "body": {"asset_ip": "{{alert.src_ip}}", "check_process_state": true}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 15
+    },
+    {
+      "id": "ot_network_segment",
+      "name": "Apply IT-OT DMZ firewall rule (OT-SAFE: no host isolation)",
+      "type": "block_network_segment",
+      "params": {
+        "segment_type": "it_ot_dmz",
+        "direction": "it_to_ot",
+        "preserve_ot_control_plane": true,
+        "ot_safe": true
+      },
+      "on_failure": "abort",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "alert_ot_team",
+      "name": "Alert OT Security Team and Grid Control Centre",
+      "type": "notify",
+      "params": {
+        "channels": ["sms", "voice", "email"],
+        "recipients": ["ot_security@discoms.in", "grid_control_centre", "ciso"],
+        "message": "OT CYBERATTACK DETECTED: Grid control systems under threat. OT team to physically verify substation automation systems. DO NOT reboot PLCs/RTUs without OT engineer approval.",
+        "priority": "P0_EMERGENCY"
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "nciipc_notify",
+      "name": "Mandatory NCIIPC notification (Critical Infra attack)",
+      "type": "http",
+      "params": {
+        "url": "${CERTIN_REPORTER_URL}/api/v1/report/submit",
+        "method": "POST",
+        "body": {
+          "category": "CAT-10",
+          "incident_id": "{{alert.id}}",
+          "organisation_type": "power_grid_cni",
+          "notify_nciipc": true,
+          "notify_cert_in": true,
+          "deadline_hours": 6
+        }
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "block_volt_typhoon_c2",
+      "name": "Block Volt Typhoon known C2 infrastructure",
+      "type": "block_ip",
+      "params": {
+        "blocklist": "volt_typhoon_c2_iocs",
+        "apply_to": "perimeter_firewall",
+        "also_block": ["frp_proxy_patterns"]
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "historian_backup",
+      "name": "Emergency offline backup of process historian data",
+      "type": "http",
+      "params": {
+        "url": "${OT_CONNECTOR_URL}/api/v1/historian/emergency-backup",
+        "method": "POST",
+        "body": {"offline": true, "destination": "air_gapped_storage"}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 120
+    },
+    {
+      "id": "manual_gate",
+      "name": "HUMAN APPROVAL REQUIRED: Physical grid protection measures",
+      "type": "approval_gate",
+      "params": {
+        "approvers": ["grid_operations_director", "ciso"],
+        "message": "Approve physical protection measures: (1) Manual mode for critical substations, (2) Load shedding protocol activation if required, (3) Emergency liaison with POSOCO.",
+        "timeout_minutes": 10
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 600
+    }
+  ]
+}

@@ -1,0 +1,852 @@
+[
+  {
+    "connector_id": "aws_security_hub",
+    "connector_name": "AWS Security Hub",
+    "category": "cloud",
+    "description": "AWS Security Hub findings (GuardDuty, Inspector, Macie, third-party).",
+    "fields": [
+      {
+        "name": "region",
+        "type": "string",
+        "label": "AWS Region",
+        "required": true,
+        "default": "us-east-1"
+      },
+      {
+        "name": "access_key",
+        "type": "string",
+        "label": "Access Key ID",
+        "required": false,
+        "help_text": "Leave blank to use the runtime IAM role / instance profile."
+      },
+      {
+        "name": "secret_key",
+        "type": "secret",
+        "label": "Secret Access Key",
+        "required": false,
+        "help_text": "Required only when supplying a static access key above."
+      }
+    ],
+    "docs_url": "/docs/connectors/aws-security-hub"
+  },
+  {
+    "connector_id": "azure_activity",
+    "connector_name": "Azure Activity Logs",
+    "category": "cloud",
+    "description": "Azure subscription Activity Log \u2014 every control-plane operation (resource CRUD, RBAC changes, policy changes). Requires Reader role on the subscription.",
+    "fields": [
+      {
+        "name": "tenant_id",
+        "type": "string",
+        "label": "Tenant ID",
+        "required": true
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "Application (Client) ID",
+        "required": true
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "Client Secret",
+        "required": true
+      },
+      {
+        "name": "subscription_id",
+        "type": "string",
+        "label": "Subscription ID",
+        "required": true,
+        "placeholder": "00000000-0000-0000-0000-000000000000"
+      }
+    ],
+    "docs_url": "/docs/connectors/azure-activity",
+    "oauth": {
+      "supported_in_hosted": true,
+      "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "scopes": [
+        "https://management.azure.com/user_impersonation"
+      ]
+    }
+  },
+  {
+    "connector_id": "azure_defender",
+    "connector_name": "Microsoft Defender",
+    "category": "edr",
+    "description": "Microsoft 365 Defender unified alerts feed (Defender for Cloud, Endpoint, Identity, Office 365, Cloud Apps) via Microsoft Graph. Requires SecurityAlert.Read.All.",
+    "fields": [
+      {
+        "name": "tenant_id",
+        "type": "string",
+        "label": "Tenant ID",
+        "required": true
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "Application (Client) ID",
+        "required": true
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "Client Secret",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/azure-defender",
+    "oauth": {
+      "supported_in_hosted": true,
+      "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "scopes": [
+        "https://graph.microsoft.com/SecurityAlert.Read.All"
+      ]
+    }
+  },
+  {
+    "connector_id": "azure_entra",
+    "connector_name": "Microsoft Entra ID",
+    "category": "iam",
+    "description": "Microsoft Entra ID (Azure AD) directory audits and risky sign-ins via Microsoft Graph. Requires AuditLog.Read.All and Directory.Read.All application permissions.",
+    "fields": [
+      {
+        "name": "tenant_id",
+        "type": "string",
+        "label": "Tenant ID",
+        "required": true,
+        "placeholder": "00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "Application (Client) ID",
+        "required": true
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "Client Secret",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/azure-entra",
+    "oauth": {
+      "supported_in_hosted": true,
+      "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "scopes": [
+        "https://graph.microsoft.com/AuditLog.Read.All",
+        "https://graph.microsoft.com/Directory.Read.All"
+      ]
+    }
+  },
+  {
+    "connector_id": "cloudflare",
+    "connector_name": "Cloudflare",
+    "category": "saas",
+    "description": "Cloudflare account audit logs (zone changes, API token grants, member adds, WAF/firewall edits) via the v4 API. Requires an API token scoped to Account: Audit Logs: Read.",
+    "fields": [
+      {
+        "name": "account_id",
+        "type": "string",
+        "label": "Account ID",
+        "required": true,
+        "placeholder": "abc123def456...",
+        "help_text": "Found in the Cloudflare dashboard under any zone's Overview, lower-right pane (\"Account ID\")."
+      },
+      {
+        "name": "api_token",
+        "type": "secret",
+        "label": "API Token",
+        "required": true,
+        "help_text": "Account-scoped API token with the Audit Logs: Read permission. Avoid using the legacy Global API Key."
+      }
+    ],
+    "docs_url": "/docs/connectors/cloudflare",
+    "oauth": {
+      "supported_in_hosted": false
+    }
+  },
+  {
+    "connector_id": "cortex_xdr",
+    "connector_name": "Cortex XDR",
+    "category": "edr",
+    "description": "Palo Alto Cortex XDR incidents via the public REST API.",
+    "fields": [
+      {
+        "name": "api_key_id",
+        "type": "string",
+        "label": "API Key ID",
+        "required": true
+      },
+      {
+        "name": "api_key",
+        "type": "secret",
+        "label": "API Key",
+        "required": true
+      },
+      {
+        "name": "fqdn",
+        "type": "string",
+        "label": "FQDN",
+        "required": true,
+        "placeholder": "api-example.xdr.us.paloaltonetworks.com",
+        "help_text": "Fully qualified domain name of your Cortex XDR tenant."
+      }
+    ],
+    "docs_url": "/docs/connectors/cortex-xdr"
+  },
+  {
+    "connector_id": "crowdstrike",
+    "connector_name": "CrowdStrike Falcon",
+    "category": "edr",
+    "description": "CrowdStrike Falcon detections via the Falcon REST API.",
+    "fields": [
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "Client ID",
+        "required": true
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "Client Secret",
+        "required": true
+      },
+      {
+        "name": "base_url",
+        "type": "string",
+        "label": "Base URL",
+        "required": false,
+        "default": "https://api.crowdstrike.com",
+        "help_text": "Override only if your tenant lives in a non-US cloud (e.g. api.eu-1.crowdstrike.com)."
+      }
+    ],
+    "docs_url": "/docs/connectors/crowdstrike"
+  },
+  {
+    "connector_id": "duo_security",
+    "connector_name": "Duo Security",
+    "category": "iam",
+    "description": "Duo Security authentication logs via the Admin API (HMAC-SHA1 signed).",
+    "fields": [
+      {
+        "name": "integration_key",
+        "type": "string",
+        "label": "Integration Key",
+        "required": true
+      },
+      {
+        "name": "secret_key",
+        "type": "secret",
+        "label": "Secret Key",
+        "required": true
+      },
+      {
+        "name": "api_hostname",
+        "type": "string",
+        "label": "API Hostname",
+        "required": true,
+        "placeholder": "api-XXXXXXXX.duosecurity.com"
+      }
+    ],
+    "docs_url": "/docs/connectors/duo-security"
+  },
+  {
+    "connector_id": "elastic",
+    "connector_name": "Elastic SIEM",
+    "category": "siem",
+    "description": "Elastic Security via the ES|QL search API. Federated-search ready.",
+    "fields": [
+      {
+        "name": "base_url",
+        "type": "string",
+        "label": "Elasticsearch URL",
+        "required": true,
+        "placeholder": "https://elastic.example.com:9200",
+        "help_text": "Cluster endpoint, not Kibana."
+      },
+      {
+        "name": "api_key",
+        "type": "secret",
+        "label": "API Key",
+        "required": false
+      },
+      {
+        "name": "username",
+        "type": "string",
+        "label": "Username",
+        "required": false
+      },
+      {
+        "name": "password",
+        "type": "secret",
+        "label": "Password",
+        "required": false
+      },
+      {
+        "name": "index",
+        "type": "string",
+        "label": "Default Index Pattern",
+        "required": false,
+        "default": "logs-*"
+      },
+      {
+        "name": "ssl_verify",
+        "type": "boolean",
+        "label": "Verify SSL certificate",
+        "required": false,
+        "default": true,
+        "help_text": "Disable only for self-signed certificates in private deployments."
+      }
+    ],
+    "docs_url": "/docs/connectors/elastic"
+  },
+  {
+    "connector_id": "gcp_cloud_audit",
+    "connector_name": "GCP Cloud Audit Logs",
+    "category": "cloud",
+    "description": "Google Cloud Audit Logs (Admin Activity, Data Access, System Event) via Cloud Logging. Requires a service account with roles/logging.viewer (and roles/logging.privateLogViewer for Data Access logs).",
+    "fields": [
+      {
+        "name": "project_id",
+        "type": "string",
+        "label": "Project ID",
+        "required": true,
+        "placeholder": "my-prod-project",
+        "help_text": "The GCP project to read audit logs from. Use a log-sink aggregator project if you've consolidated."
+      },
+      {
+        "name": "service_account_json",
+        "type": "secret",
+        "label": "Service account JSON key",
+        "required": true,
+        "help_text": "Paste the full JSON key file. It will be encrypted at rest by the credential vault."
+      }
+    ],
+    "docs_url": "/docs/connectors/gcp-cloud-audit",
+    "oauth": {
+      "supported_in_hosted": false,
+      "token_url": "https://oauth2.googleapis.com/token",
+      "scopes": [
+        "https://www.googleapis.com/auth/logging.read"
+      ]
+    }
+  },
+  {
+    "connector_id": "gcp_scc",
+    "connector_name": "GCP Security Command Center",
+    "category": "cloud",
+    "description": "Google Cloud Security Command Center findings. Requires a service account with roles/securitycenter.findingsViewer at the organization or folder level.",
+    "fields": [
+      {
+        "name": "organization_id",
+        "type": "string",
+        "label": "Organization ID",
+        "required": true,
+        "placeholder": "1234567890",
+        "help_text": "Numeric GCP organization ID. SCC is org-scoped; the service account must have findingsViewer at this level (or on a parent folder/source)."
+      },
+      {
+        "name": "service_account_json",
+        "type": "secret",
+        "label": "Service account JSON key",
+        "required": true,
+        "help_text": "Paste the full JSON key file. It will be encrypted at rest by the credential vault."
+      }
+    ],
+    "docs_url": "/docs/connectors/gcp-scc",
+    "oauth": {
+      "supported_in_hosted": false,
+      "token_url": "https://oauth2.googleapis.com/token",
+      "scopes": [
+        "https://www.googleapis.com/auth/cloud-platform"
+      ]
+    }
+  },
+  {
+    "connector_id": "github",
+    "connector_name": "GitHub",
+    "category": "vcs",
+    "description": "GitHub organization audit log and Code Scanning alerts. Requires a token with read:audit_log and security_events scopes (fine-grained PAT or GitHub App installation token).",
+    "fields": [
+      {
+        "name": "organization",
+        "type": "string",
+        "label": "Organization slug",
+        "required": true,
+        "placeholder": "my-org"
+      },
+      {
+        "name": "token",
+        "type": "secret",
+        "label": "Personal Access Token or App Installation Token",
+        "required": true,
+        "help_text": "Fine-grained PAT recommended. Required scopes: read:audit_log, security_events. For GitHub App auth, paste a fresh installation token."
+      }
+    ],
+    "docs_url": "/docs/connectors/github",
+    "oauth": {
+      "supported_in_hosted": false,
+      "authorize_url": "https://github.com/login/oauth/authorize",
+      "token_url": "https://github.com/login/oauth/access_token",
+      "scopes": [
+        "read:audit_log",
+        "security_events"
+      ]
+    }
+  },
+  {
+    "connector_id": "google_workspace",
+    "connector_name": "Google Workspace",
+    "category": "saas",
+    "description": "Google Workspace audit logs (login, admin, drive, token, mobile) via the Admin SDK Reports API. Requires a service account with domain-wide delegation and an admin email to impersonate.",
+    "fields": [
+      {
+        "name": "admin_email",
+        "type": "string",
+        "label": "Super-admin email",
+        "required": true,
+        "placeholder": "audit-bot@example.com",
+        "help_text": "The Google Workspace super-admin to impersonate via domain-wide delegation. The service account's client_id must be authorized in the Admin Console with the admin.reports.audit.readonly scope."
+      },
+      {
+        "name": "service_account_json",
+        "type": "secret",
+        "label": "Service account JSON key",
+        "required": true,
+        "help_text": "Paste the full JSON key file. Encrypted at rest by the credential vault."
+      }
+    ],
+    "docs_url": "/docs/connectors/google-workspace",
+    "oauth": {
+      "supported_in_hosted": false,
+      "token_url": "https://oauth2.googleapis.com/token",
+      "scopes": [
+        "https://www.googleapis.com/auth/admin.reports.audit.readonly"
+      ]
+    }
+  },
+  {
+    "connector_id": "jira",
+    "connector_name": "Jira",
+    "category": "saas",
+    "description": "Jira Cloud issues via the REST API v3.",
+    "fields": [
+      {
+        "name": "base_url",
+        "type": "string",
+        "label": "Jira Base URL",
+        "required": true,
+        "placeholder": "https://yourorg.atlassian.net"
+      },
+      {
+        "name": "email",
+        "type": "string",
+        "label": "Email",
+        "required": true
+      },
+      {
+        "name": "api_token",
+        "type": "secret",
+        "label": "API Token",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/jira"
+  },
+  {
+    "connector_id": "m365_audit",
+    "connector_name": "Microsoft 365 Audit",
+    "category": "saas",
+    "description": "Microsoft 365 unified audit log (Azure AD, Exchange, SharePoint/OneDrive, Teams, Power BI) via the Office 365 Management Activity API. Requires ActivityFeed.Read on an Azure AD app registration.",
+    "fields": [
+      {
+        "name": "tenant_id",
+        "type": "string",
+        "label": "Tenant ID",
+        "required": true,
+        "placeholder": "00000000-0000-0000-0000-000000000000"
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "Application (Client) ID",
+        "required": true
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "Client Secret",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/m365-audit",
+    "oauth": {
+      "supported_in_hosted": true,
+      "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      "scopes": [
+        "https://manage.office.com/ActivityFeed.Read"
+      ]
+    }
+  },
+  {
+    "connector_id": "microsoft_sentinel",
+    "connector_name": "Microsoft Sentinel",
+    "category": "siem",
+    "description": "Microsoft Sentinel incidents via the Azure Security Insights REST API.",
+    "fields": [
+      {
+        "name": "tenant_id",
+        "type": "string",
+        "label": "Tenant ID",
+        "required": true
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "Client ID",
+        "required": true
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "Client Secret",
+        "required": true
+      },
+      {
+        "name": "subscription_id",
+        "type": "string",
+        "label": "Subscription ID",
+        "required": true
+      },
+      {
+        "name": "resource_group",
+        "type": "string",
+        "label": "Resource Group",
+        "required": true
+      },
+      {
+        "name": "workspace",
+        "type": "string",
+        "label": "Workspace Name",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/microsoft-sentinel"
+  },
+  {
+    "connector_id": "okta",
+    "connector_name": "Okta Identity",
+    "category": "iam",
+    "description": "Okta system log events (auth, MFA, account locks, blocked requests).",
+    "fields": [
+      {
+        "name": "domain",
+        "type": "string",
+        "label": "Okta Domain",
+        "required": true,
+        "placeholder": "https://yourorg.okta.com"
+      },
+      {
+        "name": "api_token",
+        "type": "secret",
+        "label": "API Token",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/okta"
+  },
+  {
+    "connector_id": "onepassword",
+    "connector_name": "1Password Events",
+    "category": "iam",
+    "description": "1Password sign-in attempts via the Events Reporting API.",
+    "fields": [
+      {
+        "name": "api_token",
+        "type": "secret",
+        "label": "API Token (Bearer)",
+        "required": true
+      },
+      {
+        "name": "base_url",
+        "type": "string",
+        "label": "Events API Base URL",
+        "required": false,
+        "default": "https://events.1password.com",
+        "help_text": "Override only for 1Password Business accounts on a non-default region."
+      }
+    ],
+    "docs_url": "/docs/connectors/onepassword"
+  },
+  {
+    "connector_id": "proofpoint",
+    "connector_name": "Proofpoint TAP",
+    "category": "saas",
+    "description": "Proofpoint Targeted Attack Protection \u2014 blocked messages via the SIEM API.",
+    "fields": [
+      {
+        "name": "service_principal",
+        "type": "string",
+        "label": "Service Principal",
+        "required": true
+      },
+      {
+        "name": "service_secret",
+        "type": "secret",
+        "label": "Service Secret",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/proofpoint"
+  },
+  {
+    "connector_id": "sentinelone",
+    "connector_name": "SentinelOne",
+    "category": "edr",
+    "description": "SentinelOne threat detections via the Management Console API.",
+    "fields": [
+      {
+        "name": "api_token",
+        "type": "secret",
+        "label": "API Token",
+        "required": true
+      },
+      {
+        "name": "base_url",
+        "type": "string",
+        "label": "Base URL",
+        "required": true,
+        "placeholder": "https://usea1-partners.sentinelone.net"
+      },
+      {
+        "name": "site_id",
+        "type": "string",
+        "label": "Site ID",
+        "required": false,
+        "help_text": "Optional. Limits results to a single site."
+      }
+    ],
+    "docs_url": "/docs/connectors/sentinelone"
+  },
+  {
+    "connector_id": "servicenow",
+    "connector_name": "ServiceNow",
+    "category": "saas",
+    "description": "ServiceNow incidents via the Table API.",
+    "fields": [
+      {
+        "name": "instance_url",
+        "type": "string",
+        "label": "Instance URL",
+        "required": true,
+        "placeholder": "https://yourinstance.service-now.com"
+      },
+      {
+        "name": "username",
+        "type": "string",
+        "label": "Username",
+        "required": true
+      },
+      {
+        "name": "password",
+        "type": "secret",
+        "label": "Password",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/servicenow"
+  },
+  {
+    "connector_id": "snyk",
+    "connector_name": "Snyk",
+    "category": "vcs",
+    "description": "Snyk vulnerability issues via the REST API.",
+    "fields": [
+      {
+        "name": "api_token",
+        "type": "secret",
+        "label": "API Token",
+        "required": true
+      },
+      {
+        "name": "org_id",
+        "type": "string",
+        "label": "Organization ID",
+        "required": true,
+        "help_text": "Snyk organization UUID (Settings \u2192 General \u2192 Organization ID)."
+      },
+      {
+        "name": "base_url",
+        "type": "string",
+        "label": "Base URL",
+        "required": false,
+        "default": "https://api.snyk.io",
+        "help_text": "Override for Snyk Enterprise on-prem or EU tenants."
+      }
+    ],
+    "docs_url": "/docs/connectors/snyk"
+  },
+  {
+    "connector_id": "splunk",
+    "connector_name": "Splunk SIEM",
+    "category": "siem",
+    "description": "Splunk Enterprise / Cloud notable events via the REST API.",
+    "fields": [
+      {
+        "name": "base_url",
+        "type": "string",
+        "label": "Splunk URL",
+        "required": true,
+        "placeholder": "https://splunk.example.com:8089",
+        "help_text": "Management port (default 8089), not the web UI port."
+      },
+      {
+        "name": "token",
+        "type": "secret",
+        "label": "HEC / API Token",
+        "required": true
+      },
+      {
+        "name": "saved_search",
+        "type": "string",
+        "label": "Saved Search Name",
+        "required": false,
+        "default": "AiSOC_Alerts"
+      },
+      {
+        "name": "ssl_verify",
+        "type": "boolean",
+        "label": "Verify SSL certificate",
+        "required": false,
+        "default": true,
+        "help_text": "Disable only for self-signed certificates in private deployments."
+      }
+    ],
+    "docs_url": "/docs/connectors/splunk"
+  },
+  {
+    "connector_id": "tailscale",
+    "connector_name": "Tailscale",
+    "category": "network",
+    "description": "Tailscale zero-trust network audit logs. Captures every ACL change, device approval / removal, key rotation, user role change, and admin configuration mutation in your tailnet.",
+    "fields": [
+      {
+        "name": "tailnet",
+        "type": "string",
+        "label": "Tailnet",
+        "required": true,
+        "placeholder": "example.com or -",
+        "help_text": "Your tailnet name (the organisation slug shown in the Tailscale admin console, e.g. 'example.com'). Use '-' to use the default tailnet associated with the API key / OAuth token."
+      },
+      {
+        "name": "api_key",
+        "type": "secret",
+        "label": "API Key (optional if using OAuth)",
+        "required": false,
+        "help_text": "Tailscale API key (starts with 'tskey-api-'). Use either this *or* the OAuth client credentials below \u2014 not both."
+      },
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "OAuth Client ID (optional)",
+        "required": false,
+        "help_text": "OAuth 2.0 client ID from the Tailscale admin console. Required scope: 'audit:read'."
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "OAuth Client Secret (optional)",
+        "required": false,
+        "help_text": "OAuth 2.0 client secret. Only needed when using client-credential flow instead of an API key."
+      }
+    ],
+    "docs_url": "/docs/connectors/tailscale",
+    "oauth": {
+      "supported_in_hosted": false,
+      "authorize_url": "https://login.tailscale.com/admin/settings/oauth",
+      "token_url": "https://api.tailscale.com/api/v2/oauth/token",
+      "scopes": [
+        "audit:read"
+      ]
+    }
+  },
+  {
+    "connector_id": "wiz",
+    "connector_name": "Wiz",
+    "category": "cloud",
+    "description": "Wiz cloud security issues via the GraphQL API.",
+    "fields": [
+      {
+        "name": "client_id",
+        "type": "string",
+        "label": "Client ID",
+        "required": true
+      },
+      {
+        "name": "client_secret",
+        "type": "secret",
+        "label": "Client Secret",
+        "required": true
+      },
+      {
+        "name": "api_endpoint_url",
+        "type": "string",
+        "label": "API Endpoint URL",
+        "required": true,
+        "placeholder": "https://api.us20.app.wiz.io/graphql",
+        "help_text": "Your tenant's GraphQL API endpoint."
+      },
+      {
+        "name": "auth_url",
+        "type": "string",
+        "label": "Auth URL",
+        "required": false,
+        "default": "https://auth.app.wiz.io/oauth/token",
+        "help_text": "OAuth2 token endpoint. Override only for gov-cloud tenants."
+      }
+    ],
+    "docs_url": "/docs/connectors/wiz"
+  },
+  {
+    "connector_id": "zscaler",
+    "connector_name": "Zscaler Internet Access",
+    "category": "network",
+    "description": "Zscaler Internet Access web security logs via the ZIA API.",
+    "fields": [
+      {
+        "name": "api_key",
+        "type": "secret",
+        "label": "API Key",
+        "required": true
+      },
+      {
+        "name": "cloud",
+        "type": "string",
+        "label": "ZIA Cloud",
+        "required": false,
+        "default": "zscloud.net",
+        "help_text": "ZIA cloud domain (e.g. zscloud.net, zscaler.net)."
+      },
+      {
+        "name": "username",
+        "type": "string",
+        "label": "Admin Username",
+        "required": true
+      },
+      {
+        "name": "password",
+        "type": "secret",
+        "label": "Admin Password",
+        "required": true
+      }
+    ],
+    "docs_url": "/docs/connectors/zscaler"
+  }
+]

@@ -1,0 +1,37 @@
+id: det-ot-001
+name: Modbus Unauthorized Function Code Write
+description: >
+  Detects unauthorized Modbus write commands (FC 5/6/15/16) targeting PLC coils or registers
+  from non-engineering-workstation sources. In India power grid and water treatment OT environments,
+  legitimate writes originate only from authorized HMI/SCADA workstations. Any write from
+  an IT-side IP or outside business hours is high-confidence malicious.
+version: 1.0.0
+severity: critical
+tags:
+  - mitre.ics.t0855
+  - mitre.ics.t0831
+  - mitre.ics.t0836
+  - ot.modbus
+  - cni.power_grid
+  - cni.water
+  - certin.cat10
+category: ot
+log_source:
+  product: ot_connector
+  service: modbus_monitor
+detection:
+  condition: |
+    protocol == "modbus"
+    AND function_code IN [5, 6, 15, 16]
+    AND NOT src_ip IN ALLOWLISTED_HMI_RANGES
+false_positives:
+  - Authorized engineering workstation during maintenance window
+  - Legitimate SCADA system reconfiguration (verify with OT team before closing)
+playbook: cni-power-grid-ot-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'
+references:
+  - https://www.cisa.gov/sites/default/files/publications/AA22-103A-joint-csaa_508.pdf
+  - https://cert-in.org.in/s2cMainServlet?pageid=ADVISORY

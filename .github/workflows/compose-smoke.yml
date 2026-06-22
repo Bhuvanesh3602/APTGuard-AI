@@ -1,0 +1,310 @@
+name: Compose Smoke
+
+# Boots the full Docker Compose stack from a clean checkout and asserts the
+# user-facing surfaces (Postgres, API, web) become healthy within a 10-minute
+# budget. This is the gate that proves a fresh `git clone && docker compose up`
+# actually works — the workflow that catches `docker-compose.yml` regressions
+# before they reach a new contributor.
+#
+# Strategy: pull-by-default. Services with published images on GHCR
+# (`AISOC_VERSION=main`) are pulled; the two unpublished default-profile
+# services (`honeytokens`, `purple-team`) are built locally. Profile-gated
+# services (osquery, connectors, chatops, monitoring) are intentionally
+# excluded — they are exercised by their own publish workflows.
+#
+# Use `workflow_dispatch` with `force_build: true` to force every service to
+# rebuild from source — useful when validating Dockerfile changes that have
+# not yet been published.
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      # Compose surface itself.
+      - 'docker-compose.yml'
+      - 'docker-compose.demo.yml'
+      - '.env.example'
+      - '.github/workflows/compose-smoke.yml'
+      # Any source under a service build context — Dockerfile changes alone
+      # are not enough, because a stale GHCR image will silently mask source
+      # bugs introduced under services/<svc>/. The detect step below decides
+      # whether to rebuild or pull.
+      - 'services/**'
+      - 'apps/web/**'
+      # The web image's build context is the repo root; these are the things
+      # its Dockerfile actually copies into the build.
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.base.json'
+      - 'package.json'
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - 'hotfix/**'
+    paths:
+      - 'docker-compose.yml'
+      - 'docker-compose.demo.yml'
+      - '.env.example'
+      - '.github/workflows/compose-smoke.yml'
+      - 'services/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.base.json'
+      - 'package.json'
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force every service to build from source (skip GHCR pulls)'
+        type: boolean
+        default: false
+      aisoc_version:
+        description: 'Image tag to pull when not force-building (default: main)'
+        type: string
+        default: main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: docker compose up — full stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      AISOC_VERSION: ${{ github.event.inputs.aisoc_version || 'main' }}
+      COMPOSE_PROJECT_NAME: aisoc-smoke
+      # Health budget for the up + converge phase. The job timeout is wider
+      # to leave room for checkout, log capture, and teardown.
+      HEALTH_BUDGET_SECONDS: '600'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Full history so the rebuild-detection step below can resolve a
+          # merge base against `origin/${base_ref}`. With the default
+          # `fetch-depth: 1` shallow clone, `git diff base...HEAD` errors
+          # with `no merge base`, our `|| true` swallows it, the diff
+          # appears empty, and we silently pull a stale GHCR image even
+          # when the PR has source-code fixes. Full history is cheap on
+          # this runner and the only safe option.
+          fetch-depth: 0
+
+      - name: Show runner capacity
+        run: |
+          echo "## Runner snapshot" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          uname -a >> "$GITHUB_STEP_SUMMARY"
+          docker --version >> "$GITHUB_STEP_SUMMARY"
+          docker compose version >> "$GITHUB_STEP_SUMMARY"
+          free -h >> "$GITHUB_STEP_SUMMARY" || true
+          df -h / >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Seed environment file
+        run: |
+          cp .env.example .env
+          # Override the image tag so smoke runs always pull a known-good
+          # published tag. Manual dispatches can override this via input.
+          if grep -q '^AISOC_VERSION=' .env; then
+            sed -i "s|^AISOC_VERSION=.*|AISOC_VERSION=${AISOC_VERSION}|" .env
+          else
+            printf '\nAISOC_VERSION=%s\n' "${AISOC_VERSION}" >> .env
+          fi
+          echo "Resolved AISOC_VERSION=${AISOC_VERSION}"
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
+      - name: Detect build-context changes
+        id: dockerfile_changes
+        run: |
+          # The published GHCR image becomes stale the moment ANY file inside
+          # a service's build context changes — not only the Dockerfile. A PR
+          # that fixes a Python bug under services/api/app/ but leaves the
+          # Dockerfile untouched would otherwise silently boot the previous
+          # image and mask the fix (or the bug). We diff the full build
+          # contexts derived from docker-compose.yml to decide.
+          force_build="${{ github.event.inputs.force_build || 'false' }}"
+          if [ "${force_build}" = "true" ]; then
+            echo "Manual force_build=true requested."
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Determine the diff base.
+          base_ref=""
+          if [ -n "${{ github.base_ref }}" ]; then
+            git fetch --no-tags --depth=50 origin "${{ github.base_ref }}" || true
+            base_ref="origin/${{ github.base_ref }}"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            base_ref="${{ github.event.before }}"
+          fi
+
+          if [ -z "${base_ref}" ]; then
+            echo "No diff base; defaulting to pull."
+            echo "rebuild=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Build paths mirror docker-compose.yml `build.context` entries.
+          # Keep this list in sync when adding/removing built services. The
+          # web image's context is the repo root but only a subset of the
+          # tree is COPY'd in — listing those entries explicitly avoids
+          # false-positive rebuilds on every PR.
+          paths=(
+            'services/api/'
+            'services/ingest/'
+            'services/enrichment/'
+            'services/fusion/'
+            'services/agents/'
+            'services/osquery-tls/'
+            'services/actions/'
+            'services/connectors/'
+            'services/threatintel/'
+            'services/ueba/'
+            'services/honeytokens/'
+            'services/purple-team/'
+            'services/realtime/'
+            'services/slack-bot/'
+            'apps/web/'
+            'packages/'
+            'pnpm-lock.yaml'
+            'pnpm-workspace.yaml'
+            'turbo.json'
+            'tsconfig.base.json'
+            'package.json'
+          )
+
+          # Fail-open: if `git diff` errors (shallow clone, missing merge
+          # base, etc.) we rebuild rather than risk pulling a stale image
+          # that masks the very fix this PR is shipping. The previous
+          # `|| true` form silently set `rebuild=false` and caused the
+          # IndexError in detection_proposals.py to keep landing in CI
+          # logs even after the source fix had been pushed.
+          diff_status=0
+          changed=$(git diff --name-only "${base_ref}"...HEAD -- "${paths[@]}") || diff_status=$?
+          if [ "${diff_status}" -ne 0 ]; then
+            echo "git diff vs ${base_ref} failed (exit ${diff_status}); rebuilding from source."
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "${changed}" ]; then
+            echo "Build-context file(s) changed since ${base_ref}:"
+            printf '  %s\n' ${changed}
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No build-context changes vs ${base_ref}; pulling published images."
+            echo "rebuild=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pre-pull published images
+        if: steps.dockerfile_changes.outputs.rebuild != 'true'
+        run: |
+          # Best-effort pull. We don't fail the build here — services that
+          # don't yet publish will fall through to the local build step
+          # triggered by `compose up` honoring `pull_policy: missing`.
+          docker compose pull --ignore-pull-failures --quiet || true
+
+      - name: Boot stack (pull-by-default)
+        if: steps.dockerfile_changes.outputs.rebuild != 'true'
+        run: docker compose up -d --quiet-pull
+
+      - name: Boot stack (force rebuild)
+        if: steps.dockerfile_changes.outputs.rebuild == 'true'
+        run: docker compose up -d --build
+
+      - name: Wait for stack to converge
+        id: converge
+        run: |
+          set -u
+          deadline=$(( $(date +%s) + HEALTH_BUDGET_SECONDS ))
+
+          probe_postgres() {
+            docker compose ps --format '{{.Name}} {{.Health}}' \
+              | awk '$1=="aisoc-postgres" && $2=="healthy" {found=1} END {exit !found}'
+          }
+
+          probe_http() {
+            local url="$1" expect="$2"
+            local code
+            code=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              --max-time 5 "$url" || echo "000")
+            [ "$code" = "$expect" ]
+          }
+
+          ok_postgres=0
+          ok_api=0
+          ok_web=0
+
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            if [ "$ok_postgres" -eq 0 ] && probe_postgres; then
+              ok_postgres=1
+              echo "✓ postgres healthy"
+            fi
+            if [ "$ok_api" -eq 0 ] && probe_http "http://localhost:8000/health" "200"; then
+              ok_api=1
+              echo "✓ api /health 200"
+            fi
+            if [ "$ok_web" -eq 0 ] && probe_http "http://localhost:3000" "200"; then
+              ok_web=1
+              echo "✓ web 200"
+            fi
+            if [ "$ok_postgres" -eq 1 ] && [ "$ok_api" -eq 1 ] && [ "$ok_web" -eq 1 ]; then
+              elapsed=$(( $(date +%s) - (deadline - HEALTH_BUDGET_SECONDS) ))
+              echo "elapsed_seconds=${elapsed}" >> "$GITHUB_OUTPUT"
+              echo "Stack converged in ${elapsed}s"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "::error::Stack did not converge within ${HEALTH_BUDGET_SECONDS}s"
+          echo "  postgres healthy: ${ok_postgres}"
+          echo "  api /health 200:  ${ok_api}"
+          echo "  web 200:          ${ok_web}"
+          exit 1
+
+      - name: Record success summary
+        if: success()
+        run: |
+          {
+            echo "## Smoke result"
+            echo ""
+            echo "Stack converged in **${{ steps.converge.outputs.elapsed_seconds }}s**"
+            echo "(budget ${HEALTH_BUDGET_SECONDS}s)."
+            echo ""
+            echo "| gate | status |"
+            echo "|------|--------|"
+            echo "| postgres healthy | ✓ |"
+            echo "| api /health 200  | ✓ |"
+            echo "| web 200          | ✓ |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Capture forensics on failure
+        if: failure()
+        run: |
+          echo "## Compose state"
+          docker compose ps || true
+          echo
+          echo "## Recent service logs"
+          docker compose logs --tail=200 --no-color || true
+          echo
+          echo "## Disk after boot"
+          df -h /
+          echo
+          echo "## Memory after boot"
+          free -h || true
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v --remove-orphans

@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "aisoc-ot-connector"
+version = "1.0.0"
+description = "AiSOC OT/ICS Connector — Modbus/DNP3/SCADA telemetry normaliser to OCSF for India CNI"
+authors = ["AiSOC CNI Team"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+httpx = "^0.26.0"
+structlog = "^24.1.0"
+aiokafka = "^0.10.0"
+apscheduler = "^3.10.4"
+pymodbus = "^3.6.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

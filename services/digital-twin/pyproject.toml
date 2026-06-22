@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "digital-twin"
+version = "1.0.0"
+description = "AiSOC Digital Twin Attack Simulator for India CNI"
+authors = ["AiSOC Contributors"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+fastapi = ">=0.115.0"
+uvicorn = {extras = ["standard"], version = ">=0.32.0"}
+pydantic = ">=2.9.0"
+structlog = ">=24.4.0"
+neo4j = ">=5.27.0"
+
+[tool.poetry.group.dev.dependencies]
+httpx = ">=0.27.0"
+pytest = ">=8.3.2"
+pytest-asyncio = ">=0.24.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

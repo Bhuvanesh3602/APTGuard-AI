@@ -1,0 +1,33 @@
+apiVersion: v2
+name: aisoc
+description: AiSOC - the open-source, AI-native Security Operations Center
+type: application
+version: 5.2.0
+appVersion: "5.2.0"
+
+keywords:
+  - security
+  - soc
+  - ai
+  - siem
+  - soar
+  - xdr
+  - mitre-attack
+
+home: https://github.com/beenuar/AiSOC
+sources:
+  - https://github.com/beenuar/AiSOC
+
+maintainers:
+  - name: AiSOC Maintainers
+    url: https://github.com/beenuar/AiSOC
+
+dependencies:
+  - name: postgresql
+    version: "13.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: redis
+    version: "18.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled

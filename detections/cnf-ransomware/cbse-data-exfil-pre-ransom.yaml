@@ -1,0 +1,41 @@
+id: det-cnf-002
+name: CBSE-Pattern Data Exfiltration Before Ransomware (Education CNI)
+description: >
+  Detects data exfiltration pattern preceding ransomware deployment in education
+  infrastructure, matching the 2024-2026 CBSE breach pattern. Attackers exfiltrate
+  student PII (examination records, Aadhaar-linked data) before encrypting, enabling
+  double-extortion. Detection window: bulk database query + outbound transfer > 100MB.
+version: 1.0.0
+severity: critical
+tags:
+  - mitre.t1560.001
+  - mitre.t1041
+  - mitre.t1074.001
+  - ransomware.double_extortion
+  - cni.education
+  - certin.cat9
+  - india.cbse_pattern
+category: data-exfil
+log_source:
+  product: dlp
+  service: network
+detection:
+  condition: |
+    (
+      db_query_rows_returned > 10000
+      AND outbound_transfer_mb > 100
+      AND dst_country NOT IN ["IN"]
+    )
+    OR (
+      process_name IN ["7z.exe", "winrar.exe", "tar.exe"]
+      AND archive_path CONTAINS_ANY ["student", "result", "exam", "admit", "marksheet"]
+      AND archive_size_mb > 50
+    )
+false_positives:
+  - Authorised data migration (verify with data governance team)
+  - Backup jobs to DR site (allowlist by dst_ip)
+playbook: cni-education-apt-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'

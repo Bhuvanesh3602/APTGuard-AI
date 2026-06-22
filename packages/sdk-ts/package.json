@@ -1,0 +1,40 @@
+{
+  "name": "@aisoc/sdk",
+  "version": "4.0.0",
+  "description": "TypeScript client SDK for AiSOC — auto-generated from the OpenAPI schema",
+  "keywords": ["aisoc", "soc", "security", "client", "sdk"],
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "codegen": "openapi-typescript ../../docs/openapi.yaml -o src/openapi.d.ts",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "openapi-typescript": "^7.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

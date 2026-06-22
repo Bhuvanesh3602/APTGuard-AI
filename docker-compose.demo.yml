@@ -1,0 +1,300 @@
+###############################################################################
+# AiSOC - AI Security Operations Center
+# Docker Compose - Slim Demo Profile (time-to-wow under 5 minutes)
+#
+# This profile pulls prebuilt images from GHCR instead of building locally,
+# and only includes the 6 services required to demo a triaging investigation:
+#   postgres, redis, zookeeper, kafka, api, agents, realtime, web
+#
+# Optional heavyweights (clickhouse, opensearch, qdrant, neo4j, kafka-ui,
+# enrichment, fusion, ingest, threatintel, ueba, honeytokens, purple-team,
+# actions, connectors, monitoring) are intentionally excluded.
+#
+# Usage:
+#   pnpm aisoc:demo
+#
+# Manual usage:
+#   docker compose -f docker-compose.demo.yml pull
+#   docker compose -f docker-compose.demo.yml up -d
+#
+# SECURITY NOTE
+# -------------
+# Host port publishings below are bound to 127.0.0.1 so the demo's
+# development passwords are not exposed on the LAN. The same passwords
+# ship with every clone of this repo. If you need to reach these from
+# another machine, write a docker-compose.override.yml that changes
+# the host binding for the specific service you're exposing — and
+# rotate the password while you're there.
+###############################################################################
+
+networks:
+  aisoc-demo:
+    driver: bridge
+
+volumes:
+  postgres_demo_data:
+  redis_demo_data:
+  kafka_demo_data:
+
+services:
+
+  # ─── Infrastructure ─────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: aisoc-demo-postgres
+    environment:
+      POSTGRES_DB: aisoc
+      POSTGRES_USER: aisoc
+      POSTGRES_PASSWORD: aisoc_dev_secret
+    # Host port is overridable so `pnpm aisoc:demo` can fall forward to the
+    # next free port when a local Postgres is already bound to 5432. The
+    # container port stays at 5432; only the publish side changes.
+    ports:
+      - "127.0.0.1:${AISOC_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_demo_data:/var/lib/postgresql/data
+    networks:
+      - aisoc-demo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aisoc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: aisoc-demo-redis
+    command: redis-server --appendonly yes --requirepass redis_dev_secret
+    ports:
+      - "127.0.0.1:${AISOC_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_demo_data:/data
+    networks:
+      - aisoc-demo
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_dev_secret", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: aisoc-demo-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - aisoc-demo
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: aisoc-demo-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AISOC_KAFKA_PORT:-9092}:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 24
+    networks:
+      - aisoc-demo
+    volumes:
+      - kafka_demo_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─── Application Services (prebuilt from GHCR) ──────────────────────────────
+
+  api:
+    image: ghcr.io/beenuar/aisoc-core-api:${AISOC_TAG:-latest}
+    # Local build context for `pnpm aisoc:demo --rebuild`. Without this the
+    # `--build` flag is a no-op because compose has nothing to build from.
+    # When pulling prebuilt images this block is ignored.
+    build:
+      context: ./services/api
+    container_name: aisoc-demo-api
+    # `missing` lets `pnpm aisoc:demo --rebuild` use locally built images
+    # without being clobbered by a registry pull. Compose still pulls when
+    # the image isn't present locally (first run) or when the user runs
+    # `docker compose pull` explicitly.
+    pull_policy: missing
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AISOC_API_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aisoc:aisoc_dev_secret@postgres:5432/aisoc
+      REDIS_URL: redis://:redis_dev_secret@redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SECRET_KEY: dev_secret_key_change_in_production
+      ENV: development
+      ENVIRONMENT: development
+      LOG_LEVEL: info
+      # Browser → api CORS origin tracks the web host port so a fallback
+      # publish (e.g. 3001) still passes the api's CORS preflight when a
+      # caller hits the api directly.
+      CORS_ORIGINS: http://localhost:${AISOC_WEB_PORT:-3000}
+      # The agents service listens on port 8084 inside the Docker network
+      # (see its Dockerfile + the agents service block below). Without this
+      # the api defaults to `http://agents:8000` and every playbook / case
+      # investigation request 503s with "All connection attempts failed".
+      AGENTS_SERVICE_URL: http://agents:8084
+    networks:
+      - aisoc-demo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  agents:
+    image: ghcr.io/beenuar/aisoc-agents:${AISOC_TAG:-latest}
+    build:
+      context: ./services/agents
+    container_name: aisoc-demo-agents
+    pull_policy: missing
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AISOC_AGENTS_PORT:-8001}:8084"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aisoc:aisoc_dev_secret@postgres:5432/aisoc
+      REDIS_URL: redis://:redis_dev_secret@redis:6379/4
+      CORE_API_URL: http://api:8000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      ENV: development
+    networks:
+      - aisoc-demo
+    restart: unless-stopped
+
+  realtime:
+    image: ghcr.io/beenuar/aisoc-realtime:${AISOC_TAG:-latest}
+    build:
+      context: ./services/realtime
+    container_name: aisoc-demo-realtime
+    pull_policy: missing
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AISOC_REALTIME_PORT:-8086}:4000"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      REDIS_URL: redis://:redis_dev_secret@redis:6379
+      REDIS_PASSWORD: redis_dev_secret
+      PORT: 4000
+    networks:
+      - aisoc-demo
+    restart: unless-stopped
+
+  # ─── One-shot demo seeder ───────────────────────────────────────────────────
+  # Runs `python -m app.scripts.seed_demo` once when the api is healthy, then
+  # exits cleanly. The seeder is idempotent (it checks for existing INC-RT-*
+  # case_numbers before inserting), so repeated `docker compose up -d` runs
+  # don't double-seed. `restart: "no"` makes compose treat the clean exit as
+  # success and stop trying to bring it back. The orchestrator script
+  # (scripts/aisoc-demo.ts) waits for this container to terminate before
+  # reading /v1/cases — that's how we get a deterministic INC-RT-001 in the
+  # API on first browser load.
+  seed:
+    image: ghcr.io/beenuar/aisoc-core-api:${AISOC_TAG:-latest}
+    build:
+      context: ./services/api
+    container_name: aisoc-demo-seed
+    pull_policy: missing
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aisoc:aisoc_dev_secret@postgres:5432/aisoc
+      REDIS_URL: redis://:redis_dev_secret@redis:6379/0
+      SECRET_KEY: dev_secret_key_change_in_production
+      ENV: development
+      ENVIRONMENT: development
+      LOG_LEVEL: info
+      AISOC_DISABLE_KAFKA: "true"
+    networks:
+      - aisoc-demo
+    restart: "no"
+    command: ["python", "-m", "app.scripts.seed_demo"]
+
+  web:
+    image: ghcr.io/beenuar/aisoc-web:${AISOC_TAG:-latest}
+    # Build context for `pnpm aisoc:demo --rebuild`. The Dockerfile bakes the
+    # frontend bundle with empty NEXT_PUBLIC_* defaults so every fetch is a
+    # same-origin relative path (`/api/v1/...`, `/ws/...`). Next.js then
+    # proxies those to the services below using the Docker DNS targets in
+    # `environment:`.
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      # Next.js bakes rewrite destinations into routes-manifest.json at
+      # `next build` time, not at `next start`. These args MUST match the
+      # Docker DNS hostnames the runtime environment resolves to, otherwise
+      # the proxy layer ECONNREFUSEs to localhost from inside the container.
+      args:
+        API_URL: http://api:8000
+        AGENTS_URL: http://agents:8084
+        REALTIME_URL: http://realtime:4000
+        # NEXT_PUBLIC_* values are inlined as string literals into the client
+        # bundle at `next build` time, so the local demo experience (banner,
+        # auto-login, deeplink routing) requires baking them in here. Without
+        # these the bundle ships with empty strings and `isDemoMode()` returns
+        # false → no banner, no auto-login, visitor gets bounced to /login on
+        # first navigation. Mirrors the prod hosted defaults in
+        # apps/web/Dockerfile so `pnpm aisoc:demo --rebuild` produces an image
+        # behaviourally identical to the published ghcr.io/beenuar/aisoc-web
+        # image used by the no-flag default flow.
+        NEXT_PUBLIC_DEMO_MODE: "true"
+        NEXT_PUBLIC_DEMO_DEEPLINK: "/cases/INC-RT-001?tab=ledger"
+        NEXT_PUBLIC_DEMO_BANNER: "Demo data resets daily at 00:00 UTC. All write actions are disabled."
+        NEXT_PUBLIC_DEMO_AUTOLOGIN_EMAIL: "demo@tryaisoc.com"
+        NEXT_PUBLIC_DEMO_AUTOLOGIN_PASSWORD: "aisoc-demo"
+    container_name: aisoc-demo-web
+    pull_policy: missing
+    depends_on:
+      - api
+      - agents
+      - realtime
+    ports:
+      - "127.0.0.1:${AISOC_WEB_PORT:-3000}:3000"
+    environment:
+      # Server-side rewrite targets (used by the Next.js Node process).
+      # These never reach the browser — only the proxy layer in next.config.js.
+      API_URL: http://api:8000
+      AGENTS_URL: http://agents:8084
+      REALTIME_URL: http://realtime:4000
+      NODE_ENV: production
+    networks:
+      - aisoc-demo
+    restart: unless-stopped

@@ -1,0 +1,125 @@
+{
+  "id": "cni-education-apt-response-v1",
+  "name": "CNI Education: APT Breach Response (CBSE/APT36 Pattern)",
+  "description": "Response playbook for APT campaigns targeting education CNI. Optimised for the APT36/Transparent Tribe pattern against CBSE and state education boards. Prioritises student PII protection and exam integrity over full system isolation.",
+  "version": "1.0.0",
+  "tags": ["apt", "education", "cni", "apt36", "certin.cat2", "mitre.t1041", "india", "cbse_pattern"],
+  "trigger": {
+    "on": "alert",
+    "severity": ["critical", "high"],
+    "tags": ["apt", "cni.education"]
+  },
+  "author": "AiSOC CNI Team",
+  "enabled": true,
+  "created_at": "2026-06-22T00:00:00+00:00",
+  "updated_at": "2026-06-22T00:00:00+00:00",
+  "steps": [
+    {
+      "id": "attribute_apt",
+      "name": "Run India APT attribution",
+      "type": "http",
+      "params": {
+        "url": "${AGENTS_URL}/api/v1/contextual/apt-attribution",
+        "method": "POST",
+        "body": {"alert_id": "{{alert.id}}", "sector": "education"}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "protect_exam_data",
+      "name": "Emergency read-only lock on exam result databases",
+      "type": "http",
+      "params": {
+        "url": "${API_URL}/api/v1/actions/db-lockdown",
+        "method": "POST",
+        "body": {"databases": ["exam_results", "student_pii", "admit_cards"], "mode": "read_only"}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "revoke_compromised_creds",
+      "name": "Force-expire compromised user credentials",
+      "type": "disable_user",
+      "params": {
+        "user_field": "alert.username",
+        "action": "force_password_reset",
+        "notify_user": false
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "block_c2_infra",
+      "name": "Block APT36 C2 infrastructure",
+      "type": "block_ip",
+      "params": {
+        "ip_field": "alert.dst_ip",
+        "blocklist": "apt36_c2_iocs",
+        "also_block_domain": true
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "dlp_enable",
+      "name": "Enable enhanced DLP monitoring on student data stores",
+      "type": "http",
+      "params": {
+        "url": "${API_URL}/api/v1/actions/dlp-policy",
+        "method": "POST",
+        "body": {"policy": "student_pii_lockdown", "alert_on_access": true}
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "certin_report",
+      "name": "File CERT-In mandatory report (CAT-2 Compromise)",
+      "type": "http",
+      "params": {
+        "url": "${CERTIN_REPORTER_URL}/api/v1/report/submit",
+        "method": "POST",
+        "body": {
+          "category": "CAT-2",
+          "incident_id": "{{alert.id}}",
+          "organisation_type": "education_cni",
+          "data_type": "student_pii_examination_records",
+          "deadline_hours": 6
+        }
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    },
+    {
+      "id": "notify_moe",
+      "name": "Notify Ministry of Education and CERT-In",
+      "type": "notify",
+      "params": {
+        "channels": ["email"],
+        "recipients": ["cybersecurity@education.gov.in", "incident@cert-in.org.in"],
+        "template": "education_cni_apt",
+        "priority": "P1"
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 20
+    },
+    {
+      "id": "threat_hunt",
+      "name": "Launch APT36 lateral movement threat hunt",
+      "type": "http",
+      "params": {
+        "url": "${AGENTS_URL}/api/v1/hunt",
+        "method": "POST",
+        "body": {
+          "hunt_name": "apt36_lateral_movement",
+          "techniques": ["T1021.001", "T1021.002", "T1550.002", "T1570"],
+          "scope": "education_network"
+        }
+      },
+      "on_failure": "continue",
+      "timeout_seconds": 30
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "name": "aisoc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AiSOC — Open-source AI-powered Security Operations Center",
+  "license": "MIT",
+  "author": "AiSOC contributors",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "seed:demo": "docker compose exec api python -m app.scripts.seed_demo",
+    "demo:produce": "go run ./services/demo-producer",
+    "demo:produce:fast": "go run ./services/demo-producer --rate 8 --batch 10",
+    "detections:validate": "python3 scripts/validate_detections.py",
+    "playbooks:validate": "python3 scripts/validate_playbooks.py",
+    "playbooks:lint": "python3 scripts/lint_playbooks.py",
+    "eval:run": "python3 scripts/run_evals.py --out eval_report.json",
+    "cni:benchmark": "python3 scripts/benchmark_eval.py --output results/benchmark_latest.json",
+    "cni:seed-rag": "python3 scripts/seed_certin_rag.py",
+    "seed:cni": "docker compose exec api python -m app.scripts.seed_demo",
+    "aisoc:doctor": "tsx scripts/aisoc-doctor.ts",
+    "aisoc:demo": "tsx scripts/aisoc-demo.ts",
+    "aisoc:demo:down": "docker compose -f docker-compose.demo.yml down -v",
+    "aisoc:demo:logs": "docker compose -f docker-compose.demo.yml logs -f"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "prettier": "^3.2.4",
+    "tsx": "^4.22.1",
+    "turbo": "^2.9.14",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.1"
+}

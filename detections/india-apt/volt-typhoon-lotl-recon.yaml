@@ -1,0 +1,40 @@
+id: det-iapt-003
+name: Volt Typhoon Living-off-the-Land Recon in OT Environment
+description: >
+  Detects Volt Typhoon's signature living-off-the-land recon pattern in environments
+  with OT/ICS systems. Volt Typhoon uses native Windows commands (netsh, ipconfig,
+  net, tracert) to map OT network topology without deploying malware, making
+  traditional signature detection ineffective. Detects anomalous execution of
+  multiple recon commands in short time window from server systems.
+version: 1.0.0
+severity: high
+tags:
+  - mitre.t1016
+  - mitre.t1049
+  - mitre.t1082
+  - mitre.t1046
+  - apt.volt_typhoon
+  - apt.bronze_silhouette
+  - nciipc.mandatory
+  - cni.power_grid
+  - cni.critical_infra
+category: endpoint
+log_source:
+  product: edr
+  service: process-create
+detection:
+  condition: |
+    process_name IN ["netsh.exe", "ipconfig.exe", "net.exe", "tracert.exe", "ping.exe", "nslookup.exe", "route.exe"]
+    AND parent_process NOT IN ["explorer.exe", "cmd.exe"]
+    AND command_count_5min > 5
+    AND host_role IN ["server", "ot_workstation", "hmi"]
+false_positives:
+  - Network admin running diagnostic scripts (verify against change management)
+playbook: cni-power-grid-ot-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'
+references:
+  - https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-144a
+  - NCIIPC Advisory NCIIPC-2023-009

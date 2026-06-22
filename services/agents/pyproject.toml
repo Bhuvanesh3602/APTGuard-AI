@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "aisoc-agents"
+version = "0.1.0"
+description = "AiSOC AI Agent Orchestrator - LangGraph-based autonomous investigation and response"
+authors = ["Beenu Arora <beenu@cyble.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = ">=0.109,<0.137"
+uvicorn = {extras = ["standard"], version = ">=0.27,<0.50"}
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+langchain = ">=0.3.0,<0.4.0"
+langchain-core = ">=0.3.0,<0.4.0"
+langchain-openai = ">=0.2.0,<0.4.0"
+# langgraph >=0.2 exposes the public ``START`` sentinel that
+# ``app.investigator.orchestrator`` imports. The previous ``^0.0.30`` pin
+# resolved to <0.1.0 which silently broke the import at runtime.
+langgraph = ">=0.2.40,<1.1.0"
+langchain-community = ">=0.3.0,<0.4.0"
+openai = ">=1.12,<3.0"
+redis = {extras = ["hiredis"], version = ">=5.0.1,<9.0.0"}
+httpx = ">=0.26,<0.29"
+structlog = ">=24.1,<27.0"
+prometheus-client = ">=0.19,<0.26"
+python-dateutil = "^2.8.2"
+aiokafka = ">=0.10,<0.15"
+qdrant-client = {extras = ["fastembed"], version = "^1.9.0"}
+markdown = "^3.5"
+weasyprint = {version = ">=62,<70", optional = true}
+opentelemetry-sdk = "^1.24.0"
+opentelemetry-instrumentation-fastapi = "^0.45b0"
+opentelemetry-instrumentation-httpx = "^0.45b0"
+asyncpg = ">=0.29,<0.32"
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.25"}
+apscheduler = "^3.10.4"
+pyyaml = "^6.0.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4,<10.0"
+pytest-asyncio = ">=0.23,<1.5"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# Custom marker registry — keep ``pytest --strict-markers`` clean.
+# ``integration`` gates tests that require external infra (Kafka, Neo4j,
+# Postgres). Unit-only CI runs ``pytest -m "not integration"``.
+markers = [
+    "integration: mark a test as requiring external infrastructure (Kafka, Neo4j, Postgres). Run with `pytest -m integration`.",
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

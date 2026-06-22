@@ -1,0 +1,31 @@
+# gitleaks ignore list
+#
+# Each entry is a triaged false-positive. New entries MUST include a comment
+# explaining why the match is benign. If a finding cannot be justified, do not
+# add it here -- rotate the secret and remove the leak from the source.
+#
+# Format: <absolute_or_repo_relative_path>:<rule-id>:<line>
+
+# Positive test fixture for the `jwt-none-alg` detection rule. This file is
+# *expected* to contain a JWT with `alg: none` because the detection engine
+# runs against it as ground truth.
+detections/fixtures/positive/jwt-none-alg.json:jwt:2
+
+# Render IaC env-var keys (`AISOC_DISABLE_NEO4J`, `AISOC_DISABLE_QDRANT`).
+# The generic-api-key rule fires on the long key name; the value is "true",
+# not a secret.
+render.yaml:generic-api-key:70
+render.yaml:generic-api-key:124
+
+# Detection rule literal: `count_5min_per_ip_gt: 30` matches the heuristic.
+# This is a rule definition, not a credential.
+scripts/detection_specs_part3_application.py:generic-api-key:61
+
+# Detection rule positive sample: an `alg: none` JWT used to validate the
+# matching detection rule. Same fixture pattern as jwt-none-alg.json.
+scripts/detection_specs_part2.py:jwt:1111
+
+# Pre-generated Fernet key used as a deterministic test default in
+# `test_security_defaults.py`. Real deployments inject AISOC_CREDENTIAL_KEY
+# as a secret at runtime; this value is *never* used outside tests.
+services/api/tests/test_security_defaults.py:generic-api-key:34

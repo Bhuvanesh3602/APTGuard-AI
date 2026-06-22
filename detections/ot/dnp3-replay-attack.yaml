@@ -1,0 +1,34 @@
+id: det-ot-003
+name: DNP3 Protocol Replay Attack
+description: >
+  Detects DNP3 replay attacks where an adversary captures and re-sends legitimate
+  control messages. Signature: duplicate DNP3 sequence numbers from multiple source IPs,
+  or out-of-window sequence numbers. Critical for substations and SCADA systems
+  used in India's power distribution network (PGCIL/NTPC infrastructure).
+version: 1.0.0
+severity: high
+tags:
+  - mitre.ics.t0830
+  - mitre.ics.t0856
+  - ot.dnp3
+  - cni.power_grid
+  - certin.cat10
+category: ot
+log_source:
+  product: ot_connector
+  service: dnp3_monitor
+detection:
+  condition: |
+    protocol == "dnp3"
+    AND (
+      duplicate_sequence_number == true
+      OR sequence_number_gap > 100
+      OR src_ip_count_same_sequence > 1
+    )
+false_positives:
+  - Network retransmissions during legitimate communication disruption
+playbook: cni-power-grid-ot-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'

@@ -1,0 +1,33 @@
+id: det-ot-002
+name: IT-to-OT Lateral Movement via Engineering Workstation
+description: >
+  Detects lateral movement from IT network segment into OT DMZ via engineering workstations.
+  Adversaries (notably Volt Typhoon) compromise jump hosts to reach PLC/RTU systems.
+  This rule fires when an IT-side host establishes unexpected connections to OT subnet
+  on OT-specific protocols (Modbus/502, DNP3/20000, S7Comm/102, OPC-UA/4840).
+version: 1.0.0
+severity: critical
+tags:
+  - mitre.ics.t0817
+  - mitre.ics.t0818
+  - mitre.t1021.001
+  - ot.lateral_movement
+  - cni.volt_typhoon
+  - nciipc.mandatory
+category: ot
+log_source:
+  product: ot_connector
+  service: network_flow
+detection:
+  condition: |
+    src_subnet == "IT_NETWORK"
+    AND dst_subnet == "OT_DMZ"
+    AND dst_port IN [502, 20000, 102, 4840, 44818, 1911, 2404]
+    AND NOT src_ip IN AUTHORIZED_JUMP_SERVERS
+false_positives:
+  - Scheduled OT software update from authorized patch management server
+playbook: cni-power-grid-ot-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'

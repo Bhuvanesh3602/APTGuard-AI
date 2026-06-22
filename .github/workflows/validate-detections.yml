@@ -1,0 +1,61 @@
+name: Validate Detection Rules
+
+# Runs on every PR / push to main+develop, no path filter.
+# Keeping a path filter let regressions ride in on PRs that touched neighbouring
+# code without bumping a detections/** path — e.g. a refactor that breaks the
+# YAML loader. The validator stays fast (~30s for 6,900+ rules), so the cost of
+# running it always is negligible compared to that risk.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  validate:
+    name: Validate & summarise detection rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Run detection rule validator (strict fixture replay)
+        run: python3 scripts/validate_detections.py --strict-fixtures
+
+      - name: Verify curated v1.0 coverage manifest
+        run: python3 scripts/curate_detections.py --check
+
+      - name: Count rules by severity
+        if: always()
+        run: |
+          echo "### Detection Rule Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          for sev in critical high medium low; do
+            count=$(grep -rl "^severity: $sev$" detections/ 2>/dev/null | wc -l | tr -d ' ')
+            echo "| $sev | $count |" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          total=$(find detections/ -name "*.yaml" 2>/dev/null | wc -l | tr -d ' ')
+          echo "**Total rules: $total**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Count rules by category
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          for cat in network endpoint cloud identity application data-exfil; do
+            count=$(find detections/$cat/ -name "*.yaml" 2>/dev/null | wc -l | tr -d ' ')
+            echo "| $cat | $count |" >> $GITHUB_STEP_SUMMARY
+          done

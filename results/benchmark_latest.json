@@ -1,0 +1,51 @@
+{
+  "run_timestamp": "2026-06-22T21:19:40.369257Z",
+  "total_events": 100,
+  "true_positives": 47,
+  "false_negatives": 4,
+  "false_positives": 3,
+  "true_negatives": 46,
+  "detection_rate": 0.9216,
+  "false_positive_rate": 0.0612,
+  "precision": 0.94,
+  "f1_score": 0.9307,
+  "mean_time_to_detect_s": 166.7,
+  "mean_time_to_respond_s": 406.6,
+  "certin_compliance_rate": 0.9787,
+  "apt_attribution_accuracy": 0.8519,
+  "eol_coverage_rate": 0.8889,
+  "ot_safe_rate": 1.0,
+  "per_category_detection": {
+    "ransomware": {
+      "total": 11,
+      "detected": 11,
+      "missed": 0,
+      "detection_rate": 1.0
+    },
+    "apt36_exfil": {
+      "total": 18,
+      "detected": 16,
+      "missed": 2,
+      "detection_rate": 0.889
+    },
+    "volt_typhoon_ot": {
+      "total": 5,
+      "detected": 5,
+      "missed": 0,
+      "detection_rate": 1.0
+    },
+    "sidecopy_recon": {
+      "total": 8,
+      "detected": 6,
+      "missed": 2,
+      "detection_rate": 0.75
+    },
+    "eol_exploitation": {
+      "total": 9,
+      "detected": 9,
+      "missed": 0,
+      "detection_rate": 1.0
+    }
+  },
+  "summary": "AiSOC India CNI Benchmark Results (100 events): Detection Rate 92.2% | FP Rate 6.1% | Precision 94.0% | F1 93.1% | MTTD 167s (2.8min) | MTTR 407s (6.8min) | CERT-In compliance 97.9% | APT attribution 85.2% | EoL coverage 88.9% | OT-safe 100%"
+}

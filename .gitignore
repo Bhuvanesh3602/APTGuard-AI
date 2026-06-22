@@ -1,0 +1,112 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+
+# Go
+*.exe
+*.test
+vendor/
+bin/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.tfvars
+!terraform.tfvars.example
+
+# Python
+.venv/
+venv/
+.eval-test-venv/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# IDE
+.idea/
+.vscode/
+.cursor/
+.claude/
+*.swp
+*.swo
+
+# Go test/build binaries inside plugins
+plugins/**/*-build-test
+plugins/**/*-build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Docker
+.docker/
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets/
+.gstack/
+
+# Local eval / build artifacts
+eval_report.json
+eval_mitre_accuracy_report.json
+.gocache/
+*.tsbuildinfo
+
+# PR body scratch files (local working copy, never committed)
+.pr-body-*.md
+
+# Local progress tracking (per AGENTS.md preference, not committed)
+PROGRESS.md
+PR_TRIAGE.md
+
+# Acceptance harness ledger (.aisoc/acceptance-history.jsonl is per-machine and
+# accumulates across runs — useful for "is this getting slower?" but not for
+# version control. Same applies to any other harness state we drop in here.)
+.aisoc/
+
+# Detection-import upstream clones (populated by tools.detection_import)
+.import-cache/
+
+# Docusaurus generated cache (apps/docs)
+apps/docs/.docusaurus/
+apps/docs/build/
+
+# Local QA artifacts (screenshots from manual UI checks)
+apps/web/.qa-screenshots/
+
+# Marketplace index staged into the API service build context at deploy time
+# (see infra/fly/fly-demo-deploy.sh). The canonical source is marketplace/index.json
+# at the repo root; the API Dockerfile only sees its own dir as build context, so
+# the deploy script copies the index in just-in-time. We never commit the copy.
+services/api/marketplace/
+
+# Live-dumped graph schema produced by `scripts/export_graph_schema.py`
+# (default mode). The source of truth is `schemas/graph-schema.yaml`; the
+# `-current.yaml` file is a runtime artefact that varies by environment.
+schemas/graph-schema-current.yaml
+

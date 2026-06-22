@@ -1,0 +1,39 @@
+id: det-iapt-001
+name: APT36 Crimson RAT Command-and-Control Communication
+description: >
+  Detects APT36 (Transparent Tribe) Crimson RAT C2 communication patterns.
+  APT36 targets Indian defence and education institutions (CBSE, armed forces).
+  The RAT communicates over HTTP using specific user-agent strings and URI patterns.
+  Reference: CERT-In Advisory CI-2024-0018.
+version: 1.0.0
+severity: critical
+tags:
+  - mitre.t1071.001
+  - mitre.t1041
+  - apt.apt36
+  - apt.transparent_tribe
+  - india.certin.ci2024-0018
+  - cni.education
+  - cni.government
+category: network
+log_source:
+  product: proxy
+  service: http
+detection:
+  condition: |
+    (
+      http_user_agent CONTAINS_ANY ["CrimsonRAT", "Mozilla/4.0 (compatible; MSIE 6.0"]
+      OR uri_path MATCHES "/[a-f0-9]{8}/[a-f0-9]{4}/"
+      OR (method == "POST" AND response_size < 100 AND request_size > 1000)
+    )
+    AND dst_port IN [80, 443, 8080, 8443]
+false_positives:
+  - None known for exact UA match; URI pattern may match some analytics endpoints
+playbook: cni-education-apt-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'
+references:
+  - https://cert-in.org.in/advisory/CI-2024-0018
+  - https://attack.mitre.org/groups/G0134/

@@ -1,0 +1,46 @@
+id: det-cnf-001
+name: LockBit 3.0 Pre-Encryption Staging (CNI Context)
+description: >
+  Detects LockBit 3.0 pre-encryption staging activity in CNI environments.
+  The AIIMS Delhi ransomware attack (2022) and subsequent healthcare incidents
+  follow a consistent pattern: shadow copy deletion, backup service termination,
+  and file enumeration before encryption begins.
+  In CNI context this is CRITICAL — patient data or operational systems at risk.
+version: 1.0.0
+severity: critical
+tags:
+  - mitre.t1490
+  - mitre.t1489
+  - mitre.t1486
+  - ransomware.lockbit3
+  - cni.healthcare
+  - certin.cat4
+  - india.aiims_pattern
+category: endpoint
+log_source:
+  product: edr
+  service: process-create
+detection:
+  condition: |
+    (
+      command_line CONTAINS "vssadmin delete shadows"
+      OR command_line CONTAINS "wbadmin delete catalog"
+      OR command_line CONTAINS "bcdedit /set recoveryenabled no"
+      OR (
+        process_name == "net.exe"
+        AND command_line CONTAINS_ANY ["stop", "delete"]
+        AND command_line CONTAINS_ANY ["vss", "backup", "sql", "exchange"]
+      )
+    )
+    AND process_count_10min > 3
+false_positives:
+  - Legitimate backup software performing cleanup (verify process signature)
+  - IT admin running disk cleanup scripts (check change management)
+playbook: cni-healthcare-ransomware-response
+enabled: true
+author: AiSOC CNI Team
+created: '2026-06-22'
+modified: '2026-06-22'
+references:
+  - AIIMS Delhi Ransomware Incident 2022
+  - https://cert-in.org.in/s2cMainServlet?pageid=ADVISORY
