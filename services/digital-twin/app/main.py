@@ -2,13 +2,31 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
+from app.services.graph import close_graph, init_graph
 
 logger = structlog.get_logger()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Connect to the live Neo4j asset graph and seed the CNI topology if
+    # empty. Best-effort: a missing database leaves the service running on
+    # the static catalog fallback.
+    try:
+        await init_graph()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("digital_twin.graph_init_failed", error=str(exc))
+    yield
+    await close_graph()
+
 
 app = FastAPI(
     title="AiSOC Digital Twin Simulator",
@@ -18,6 +36,7 @@ app = FastAPI(
         "Supports what-if analysis for risk-ranked remediation planning."
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -33,7 +52,13 @@ app.include_router(router)
 
 @app.get("/healthz")
 async def health() -> dict:
-    return {"status": "ok", "service": "digital-twin"}
+    from app.services.graph import is_connected
+
+    return {
+        "status": "ok",
+        "service": "digital-twin",
+        "graph_backend": "neo4j" if is_connected() else "static_fallback",
+    }
 
 
 @app.get("/")

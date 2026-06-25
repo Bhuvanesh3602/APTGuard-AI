@@ -11,6 +11,7 @@ from __future__ import annotations
 import structlog
 
 from app.models.state import ActionRisk, AgentStatus, InvestigationState, ProposedAction
+from app.rag import get_certin_rag
 
 logger = structlog.get_logger()
 
@@ -113,6 +114,16 @@ def _score_apt_match(profile: dict, techniques: list[str], tools_text: str, sect
     return min(score, 1.0)
 
 
+async def _retrieve_certin_advisories(query: str, limit: int = 3) -> list[dict]:
+    """Query the live CERT-In Qdrant collection. Never raises."""
+    try:
+        rag = get_certin_rag()
+        return await rag.search(query, limit=limit)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("india_apt.rag_lookup_failed", error=str(exc))
+        return []
+
+
 async def run_india_apt(state: InvestigationState) -> InvestigationState:
     """Run India APT attribution and prediction."""
     logger.info("India APT agent starting", incident_id=str(state.incident_id))
@@ -167,6 +178,23 @@ async def run_india_apt(state: InvestigationState) -> InvestigationState:
             "sector": sector,
             "all_scores": scores,
         }
+
+        # Ground the attribution in live CERT-In advisory text (Qdrant RAG).
+        # Best-effort: a missing/empty vector store leaves the static catalog
+        # refs above untouched.
+        rag_query = (
+            f"{best_actor} {' '.join(profile['aliases'])} {profile['origin']} "
+            f"{sector} {' '.join(profile['ioc_patterns'])} "
+            f"advisory threat actor TTPs {' '.join(list(set(profile['ttps']) & set(techniques)))}"
+        )
+        advisories = await _retrieve_certin_advisories(rag_query)
+        if advisories:
+            state.threat_intel["india_apt"]["rag_advisories"] = advisories
+            titles = ", ".join(a["title"] for a in advisories[:2])
+            state.add_finding(
+                f"CERT-In RAG: retrieved {len(advisories)} live advisor"
+                f"{'y' if len(advisories) == 1 else 'ies'} grounding this attribution — {titles}"
+            )
 
         # Propose sector-specific defensive action
         state.proposed_actions.append(

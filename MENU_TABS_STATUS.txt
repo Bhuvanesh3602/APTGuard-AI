@@ -1,0 +1,294 @@
+================================================================================
+ AiSOC-CNI — SOC CONSOLE MENU TABS: WHAT EACH TAB DOES RIGHT NOW
+ Generated: 2026-06-25
+ Source of truth: apps/web/src/components/layout/Sidebar.tsx (the left nav)
+================================================================================
+
+HOW TO READ THIS FILE
+---------------------
+Each tab below shows:
+  • Label        — the text shown in the left sidebar
+  • Route        — the URL it opens (prefix with http://localhost:3000)
+  • Renders      — the React component that draws the page
+  • Does         — what it actually shows/does when you click it today
+  • Data source  — where the numbers come from RIGHT NOW:
+        [LIVE]   = calls a real backend API / WebSocket; numbers are real
+        [STATIC] = hardcoded demo data inside the React component
+                   (representative of a real attack; not wired to a backend yet)
+
+BIG PICTURE (one line)
+----------------------
+  • The ORIGINAL AiSOC platform tabs (Dashboard, Alerts, Queue, Cases,
+    Playbooks, Copilot, Attack Graph, Threat Hunt, MITRE Coverage, Connectors)
+    are [LIVE] — they fetch from the api/agents/actions services.
+  • The NEW India-CNI tabs (CNI Dashboard, UEBA, Correlation, APT Intelligence,
+    Vulnerability Prioritisation, EoL Risk Map, OT Topology, Digital Twin,
+    CERT-In Compliance) are [STATIC] — they render curated demo data that mirrors
+    the real backend behaviour, but the UI is not yet calling the live CNI
+    services. The live CNI service APIs DO exist (see "BACKEND READY" at bottom).
+
+The sidebar is organised into 7 sections that map to the 5 hackathon pillars.
+
+================================================================================
+ SECTION: COMMAND CENTRE
+================================================================================
+
+1) CNI Threat Dashboard
+   Route:   /cni
+   Renders: components/cni/CNIDashboard.tsx
+   Does:    The India-first landing screen. Shows a live IST clock, 4 KPI cards
+            (Active CNI incidents, CERT-In reports overdue, EoL systems at risk,
+            APT groups active), a per-sector incident summary (Healthcare /
+            Education / Power Grid / Govt IT), and four panels: CERT-In 6-hour
+            reporting status, India APT attribution (APT36/SideCopy/Volt Typhoon/
+            Lazarus with confidence %), EoL CVSS amplification, and an OT/ICS
+            incident feed. Ends with an APT kill-chain stage predictor.
+   Data:    [STATIC] — all values are hardcoded demo data (the clock is the only
+            live element). File comment: "Static demo data representing the CNI
+            threat landscape".
+
+2) SOC Metrics
+   Route:   /dashboard
+   Renders: components/dashboard/DashboardView.tsx
+   Does:    The classic SOC operations dashboard — funnel KPIs (events → alerts →
+            cases), pipeline health, live event feed, efficiency report, MTTD/MTTR.
+   Data:    [LIVE] — fetches /api/v1/metrics/dashboard and related endpoints from
+            the api service. (If dev-auth/env is misconfigured it falls back to
+            baseline mock data and retries — see the local-dev env note.)
+
+================================================================================
+ SECTION: 1 · BEHAVIOURAL DETECTION
+================================================================================
+
+3) Anomaly Detection (UEBA)
+   Route:   /ueba
+   Renders: components/cni/UEBAView.tsx
+   Does:    User & Entity Behaviour Analytics view — "Behavioural Anomaly
+            Detection (UEBA)" with a "Live Anomaly Feed": per-entity baselines
+            (users, devices, OT nodes) and z-score deviation scoring with no
+            signatures.
+   Data:    [STATIC] — hardcoded anomaly feed; not yet wired to the ueba service
+            (port 8007).
+
+4) Cross-Signal Correlation
+   Route:   /cni/correlation
+   Renders: components/cni/CorrelationView.tsx
+   Does:    "Cross-Signal Correlation" — fuses weak signals across IT/OT/identity/
+            network into a single correlated incident; click a node to inspect the
+            contributing signals.
+   Data:    [STATIC] — hardcoded correlation graph/scenarios.
+
+5) Attack Graph
+   Route:   /graph
+   Renders: components/graph/AttackGraphClient.tsx (AttackGraphView + RealtimeGraph)
+   Does:    Interactive force-directed attack graph of hosts/users/IOCs/techniques
+            with real-time updates over WebSocket.
+   Data:    [LIVE] — pulls the graph from the api service and streams updates via
+            the realtime service WebSocket (Neo4j-backed graph layer).
+
+================================================================================
+ SECTION: 2 · APT INTELLIGENCE
+================================================================================
+
+6) India APT Intelligence
+   Route:   /cni/threat-intel
+   Renders: components/cni/APTIntelligenceView.tsx
+   Does:    Threat-actor profile browser for India-targeting APTs (APT36/
+            Transparent Tribe, SideCopy, Volt Typhoon, Lazarus). Pick an actor to
+            see aliases, origin, sectors, TTPs and CERT-In refs; includes a
+            "Cross-Actor TTP Heat Map".
+   Data:    [STATIC] — hardcoded actor catalog. (Mirrors the live agents
+            INDIA_APT_CATALOG + CERT-In RAG, but the page doesn't call them yet.)
+
+7) MITRE ATT&CK Coverage
+   Route:   /detection/coverage
+   Renders: components/detections/CoverageView.tsx (MitreRuleHeatmap)
+   Does:    ATT&CK matrix heatmap showing which techniques your detection rules
+            cover, with gaps highlighted.
+   Data:    [LIVE] — fetches detection coverage from the api service.
+
+8) Threat Hunt
+   Route:   /hunt
+   Renders: components/hunt/HuntView.tsx
+   Does:    Interactive/continuous threat-hunting console — run hunt queries,
+            view saved hunts and scheduled hunt results.
+   Data:    [LIVE] — calls the agents hunt API (/api/v1/hunt, hunt scheduler/store).
+
+================================================================================
+ SECTION: 3 · AUTONOMOUS RESPONSE
+================================================================================
+
+9) Alerts
+   Route:   /alerts
+   Renders: components/alerts/AlertsView.tsx (+ AlertDetailView, InvestigationRail,
+            ExplainDrawer, EntityRiskQueue)
+   Does:    The alert queue. Open an alert for the Investigation Rail (agent
+            findings), the Explain drawer (NDJSON-streamed reasoning), entity risk,
+            and "create case" actions.
+   Data:    [LIVE] — fetches alerts from the api service; Explain streams from the
+            agents service. NOTE: the red sidebar badge is hardcoded to 0.
+
+10) Investigation Queue
+    Route:   /queue
+    Renders: components/queue/QueueView.tsx (+ layout/LiveQueueBadge.tsx)
+    Does:    Live queue of in-flight agent investigations; the sidebar shows a
+             live count badge that polls on its own.
+    Data:    [LIVE] — QueueView and LiveQueueBadge poll the agents service.
+
+11) Cases
+    Route:   /cases  (and /cases/[id])
+    Renders: components/cases/CasesView.tsx (+ CaseWorkspace, InvestigationLedger,
+             replay/ReplayControls)
+    Does:    Case management. A case opens the workspace with the full
+             Investigation Ledger (every prompt, tool call, evidence, rationale)
+             and a step-by-step replay control.
+    Data:    [LIVE] — fetches cases + ledger from the api/agents services
+             (Postgres-backed ledger).
+
+12) Playbooks (SOAR)
+    Route:   /playbooks  (and /playbooks/[id])
+    Renders: components/playbooks/PlaybooksView.tsx (+ PlaybookEditor, Gallery)
+    Does:    Browse, edit and run SOAR playbooks; gallery of templates; per-step
+             editor with schema validation.
+    Data:    [LIVE] — calls the agents playbook API (/api/v1/playbooks).
+
+13) AI Copilot
+    Route:   /copilot
+    Renders: components/copilot/CopilotView.tsx (+ InvestigationChat, CopilotDock)
+    Does:    Conversational SOC copilot — ask questions about an investigation,
+             get contextual actions and a timeline.
+    Data:    [LIVE] — streams from the agents copilot API (/api/v1/copilot).
+
+================================================================================
+ SECTION: 4 · VULNERABILITY & OT
+================================================================================
+
+14) Vulnerability Prioritisation
+    Route:   /cni/remediation
+    Renders: components/cni/RemediationQueueView.tsx
+    Does:    "Vulnerability Prioritisation Queue" — a dynamic, risk-ranked
+             "Remediation Queue" of what to fix first given EoL context and
+             exploitability.
+    Data:    [STATIC] — hardcoded queue. (The live eol-prioritiser now produces
+             this from NVD + CISA KEV — not yet wired to this page.)
+
+15) EoL Risk Map
+    Route:   /cni/vulnerability
+    Renders: components/cni/EOLRiskMapView.tsx
+    Does:    "End-of-Life Asset Risk Map" + "EoL Asset Inventory" — shows assets
+             on end-of-life OS/software with base CVSS × EoL multiplier amplified
+             scores.
+    Data:    [STATIC] — hardcoded inventory. (Mirrors the eol-prioritiser
+             EOL_CATALOG amplification.)
+
+16) OT Network Topology
+    Route:   /cni/ot-topology
+    Renders: components/cni/OTTopologyView.tsx
+    Does:    "OT/ICS Network Topology" — visual map of OT zones (IT DMZ → OT DMZ →
+             field PLCs/HMIs/RTUs) with anomaly overlay and IT→OT pivot highlighting.
+    Data:    [STATIC] — hardcoded topology.
+
+================================================================================
+ SECTION: 5 · DIGITAL TWIN
+================================================================================
+
+17) Digital Twin Simulator
+    Route:   /cni/digital-twin
+    Renders: components/cni/DigitalTwinView.tsx
+    Does:    Pick one of three attack scenarios (AIIMS ransomware / CBSE APT36 /
+             power-grid Volt Typhoon), pick an entry asset, click "Run Simulation"
+             and watch a staged attack path, blast radius, risk score, estimated
+             impact and recommended pre-emptive controls.
+    Data:    [STATIC] — "Run Simulation" is a 1.8s setTimeout that returns a
+             hardcoded SCENARIOS result. It does NOT call the live digital-twin
+             service (port 8011) yet — though that service now runs real Neo4j
+             shortestPath simulations (see BACKEND READY).
+
+================================================================================
+ SECTION: COMPLIANCE & PLATFORM
+================================================================================
+
+18) CERT-In Compliance
+    Route:   /cni/compliance
+    Renders: components/cni/CERTInComplianceView.tsx
+    Does:    "Active Incident Reports" — CERT-In 6-hour mandatory reporting board:
+             per-incident category (CAT-1..CAT-10), deadline countdown, filed/
+             overdue status, and the auto-generated structured report.
+    Data:    [STATIC] — hardcoded reports. (The live agents certin_agent generates
+             these from the Investigation Ledger + CERT-In RAG.)
+
+19) Connectors
+    Route:   /connectors
+    Renders: components/connectors/ConnectorsView.tsx (+ AddConnectorModal,
+             ConnectorInstanceList, InboxTokensPanel)
+    Does:    Manage data-source connectors — add/configure/inspect ingest taps and
+             inbox tokens.
+    Data:    [LIVE] — calls the api service connector endpoints.
+
+================================================================================
+ QUICK STATUS TABLE
+================================================================================
+  TAB                              ROUTE                 STATUS
+  -------------------------------  --------------------  --------------
+  CNI Threat Dashboard             /cni                  STATIC (demo)
+  SOC Metrics                      /dashboard            LIVE
+  Anomaly Detection (UEBA)         /ueba                 STATIC (demo)
+  Cross-Signal Correlation         /cni/correlation      STATIC (demo)
+  Attack Graph                     /graph                LIVE
+  India APT Intelligence           /cni/threat-intel     STATIC (demo)
+  MITRE ATT&CK Coverage            /detection/coverage   LIVE
+  Threat Hunt                      /hunt                 LIVE
+  Alerts                           /alerts               LIVE
+  Investigation Queue              /queue                LIVE
+  Cases                            /cases                LIVE
+  Playbooks (SOAR)                 /playbooks            LIVE
+  AI Copilot                       /copilot              LIVE
+  Vulnerability Prioritisation     /cni/remediation      STATIC (demo)
+  EoL Risk Map                     /cni/vulnerability    STATIC (demo)
+  OT Network Topology              /cni/ot-topology      STATIC (demo)
+  Digital Twin Simulator           /cni/digital-twin     STATIC (demo)
+  CERT-In Compliance               /cni/compliance       STATIC (demo)
+  Connectors                       /connectors           LIVE
+
+  Totals: 10 LIVE · 9 STATIC (demo)
+
+================================================================================
+ BACKEND READY (live CNI service APIs the STATIC tabs can be wired to)
+================================================================================
+These services are implemented and run real logic. The STATIC tabs above show
+demo data today, but each has a live API it could fetch from:
+
+  • Digital Twin Simulator  ->  digital-twin service (http://localhost:8011)
+        POST /api/v1/twin/simulate            (scenario attack path)
+        POST /api/v1/twin/what-if             (control risk-reduction)
+        GET  /api/v1/twin/graph/status        (Neo4j vs static fallback)
+        GET  /api/v1/twin/graph/assets        (live asset inventory)
+        GET  /api/v1/twin/graph/reachable/{asset_id}
+        GET  /api/v1/twin/graph/attack-path?from_asset=&to_asset=
+        GET  /api/v1/twin/graph/blast-radius/{asset_id}
+        (now backed by a real Neo4j graph; static BFS fallback if DB is down)
+
+  • EoL Risk Map / Vulnerability Prioritisation -> eol-prioritiser (http://localhost:8010)
+        POST /api/v1/eol/scan                 (EoL × CVSS amplification, live CVE)
+        POST /api/v1/eol/scan/bulk            (risk-ranked remediation queue)
+        GET  /api/v1/eol/cve/{cve_id}         (live NVD CVSS + CISA KEV status)
+        GET  /api/v1/eol/kev/status           (CISA Known-Exploited catalog state)
+        (now pulls live CVSS from NVD and known-exploited flag from CISA KEV)
+
+  • India APT Intelligence / CERT-In Compliance -> agents (http://localhost:8001)
+        POST /api/v1/cni/apt/attribution      (India APT attribution)
+        POST /api/v1/cni/apt/prediction       (next-stage ATT&CK prediction)
+        POST /api/v1/cni/certin/report        (CERT-In 6-hour report generation)
+        POST /api/v1/cni/full-assessment      (all 5 CNI agents; ?execute=true
+                                               also dispatches SOAR actions)
+        POST /api/v1/cni/actions/dispatch     (ProposedAction -> actions executor)
+        GET  /api/v1/cni/certin/rag/search?q= (live CERT-In advisory RAG / Qdrant)
+        GET  /api/v1/cni/certin/rag/status    (is the RAG collection seeded?)
+
+  • Anomaly Detection (UEBA)  ->  ueba service (http://localhost:8007)
+
+NOTE: To make the CNI tabs LIVE, point each component's data load at the
+endpoint above (replace the hardcoded arrays with a fetch). All four backend
+integrations degrade gracefully, so the tabs will still render if a backend
+or its datastore (Qdrant/Neo4j/NVD/KEV) is unavailable.
+================================================================================

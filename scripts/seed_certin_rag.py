@@ -276,6 +276,9 @@ def seed_qdrant(qdrant_url: str, collection: str = "certin_advisories") -> None:
     print(f"Connecting to Qdrant at {qdrant_url}...")
     client = QdrantClient(url=qdrant_url)
 
+    # NOTE: this model + collection name are kept in lock-step with the live
+    # retriever in services/agents/app/rag/certin_rag.py (CERTIN_EMBED_MODEL,
+    # CERTIN_COLLECTION). Changing one without the other breaks vector search.
     print("Loading embedding model (all-MiniLM-L6-v2)...")
     model = SentenceTransformer("all-MiniLM-L6-v2")
     vector_dim = model.get_sentence_embedding_dimension()

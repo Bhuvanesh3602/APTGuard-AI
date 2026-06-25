@@ -14,6 +14,9 @@ class AssetScanRequest(BaseModel):
     sector: str = "general"
     is_internet_facing: bool = False
     is_ot_asset: bool = False
+    # When cve_ids are supplied, pull the real CVSS base score from NVD and
+    # the known-exploited flag from CISA KEV instead of using base_cvss.
+    use_live_feed: bool = True
 
 
 class EoLFinding(BaseModel):
@@ -26,6 +29,7 @@ class EoLFinding(BaseModel):
     amplified_severity: str
     patch_available: bool = False
     recommendation: str
+    known_exploited: bool = False
 
 
 class RemediationItem(BaseModel):
@@ -47,3 +51,6 @@ class AssetRiskReport(BaseModel):
     overall_risk: str
     remediation_items: list[RemediationItem]
     india_context: str = "India govt networks: >70% EoL rate (NCSP 2023)"
+    known_exploited: bool = False
+    cve_intelligence: dict | None = None
+    cvss_source: str = "caller_supplied"

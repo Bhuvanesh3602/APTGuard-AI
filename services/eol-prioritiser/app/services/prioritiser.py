@@ -63,16 +63,25 @@ def _detect_eol(software_list: list[str], os_name: str) -> list[tuple[str, dict]
     return found
 
 
-def prioritise_asset(req: AssetScanRequest) -> AssetRiskReport:
+def _build_report(
+    req: AssetScanRequest,
+    base_cvss: float,
+    known_exploited: bool,
+    cve_intelligence: dict | None,
+    cvss_source: str,
+) -> AssetRiskReport:
+    """Core EoL amplification scorer over a (possibly feed-derived) base CVSS."""
     eol_assets = _detect_eol(req.software, req.os_name)
     findings: list[EoLFinding] = []
     items: list[RemediationItem] = []
 
-    base_cvss = req.base_cvss
     if req.is_internet_facing:
         base_cvss = min(10.0, base_cvss * 1.3)
     if req.is_ot_asset:
         base_cvss = min(10.0, base_cvss * 1.5)
+    # Actively exploited in the wild (CISA KEV) → amplify before EoL factor.
+    if known_exploited:
+        base_cvss = min(10.0, base_cvss * 1.25)
 
     for product, info in eol_assets:
         amplifier = info["amplifier"]
@@ -80,6 +89,9 @@ def prioritise_asset(req: AssetScanRequest) -> AssetRiskReport:
         orig_sev = _cvss_to_severity(base_cvss)
         amp_sev = _cvss_to_severity(amplified)
 
+        kev_clause = (
+            " ACTIVELY EXPLOITED (CISA KEV) — treat as emergency." if known_exploited else ""
+        )
         finding = EoLFinding(
             product=product,
             eol_date=info["eol_date"],
@@ -89,15 +101,16 @@ def prioritise_asset(req: AssetScanRequest) -> AssetRiskReport:
             original_severity=orig_sev,
             amplified_severity=amp_sev,
             patch_available=False,
+            known_exploited=known_exploited,
             recommendation=(
                 f"REPLACE or ISOLATE {product} (EoL {info['eol_date']}) — "
                 "no security patches will be released. "
-                "Emergency network segmentation until replacement."
+                f"Emergency network segmentation until replacement.{kev_clause}"
             ),
         )
         findings.append(finding)
 
-        urgency = "IMMEDIATE" if amplified >= 9.0 else ("HIGH" if amplified >= 7.0 else "MEDIUM")
+        urgency = "IMMEDIATE" if (amplified >= 9.0 or known_exploited) else ("HIGH" if amplified >= 7.0 else "MEDIUM")
         items.append(RemediationItem(
             rank=0,
             hostname=req.hostname,
@@ -119,6 +132,8 @@ def prioritise_asset(req: AssetScanRequest) -> AssetRiskReport:
         hostname=req.hostname,
         eol_count=len(findings),
         max_amplified_cvss=max_cvss,
+        known_exploited=known_exploited,
+        cvss_source=cvss_source,
     )
 
     return AssetRiskReport(
@@ -129,4 +144,47 @@ def prioritise_asset(req: AssetScanRequest) -> AssetRiskReport:
         max_amplified_cvss=max_cvss,
         overall_risk=_cvss_to_severity(max_cvss),
         remediation_items=items,
+        known_exploited=known_exploited,
+        cve_intelligence=cve_intelligence,
+        cvss_source=cvss_source,
+    )
+
+
+def prioritise_asset(req: AssetScanRequest) -> AssetRiskReport:
+    """Synchronous scorer using the caller-supplied base CVSS (no live feed)."""
+    return _build_report(req, req.base_cvss, False, None, "caller_supplied")
+
+
+async def prioritise_asset_live(req: AssetScanRequest) -> AssetRiskReport:
+    """
+    Score an asset using live CVE intelligence when ``cve_ids`` are supplied:
+    the base CVSS comes from NVD and the known-exploited flag from CISA KEV.
+    Falls back to the caller-supplied base when no CVEs are given or the feed
+    yields nothing.
+    """
+    if not (req.use_live_feed and req.cve_ids):
+        return prioritise_asset(req)
+
+    from app.services.cve_feed import get_cve_feed
+
+    feed = get_cve_feed()
+    intel = await feed.enrich_cves(req.cve_ids)
+
+    effective_base = intel.get("max_base_cvss")
+    if effective_base is None:
+        effective_base = req.base_cvss
+        cvss_source = "caller_supplied_feed_miss"
+    else:
+        # Mixed sources possible; label by the strongest available.
+        sources = {d.get("source") for d in intel.get("details", [])}
+        cvss_source = "nvd_live" if "nvd_live" in sources else (
+            "offline_snapshot" if "offline_snapshot" in sources else "caller_supplied"
+        )
+
+    return _build_report(
+        req,
+        effective_base,
+        intel.get("any_known_exploited", False),
+        cve_intelligence=intel,
+        cvss_source=cvss_source,
     )

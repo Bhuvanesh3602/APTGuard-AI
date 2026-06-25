@@ -26,6 +26,7 @@ from datetime import UTC, datetime, timedelta
 import structlog
 
 from app.models.state import ActionRisk, AgentStatus, InvestigationState, ProposedAction
+from app.rag import get_certin_rag
 
 logger = structlog.get_logger()
 
@@ -177,6 +178,16 @@ def _generate_certin_report(state: InvestigationState, category: str, detection_
     }
 
 
+async def _retrieve_certin_advisories(query: str, limit: int = 2) -> list[dict]:
+    """Query the live CERT-In Qdrant collection for grounding. Never raises."""
+    try:
+        rag = get_certin_rag()
+        return await rag.search(query, limit=limit)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("certin.rag_lookup_failed", error=str(exc))
+        return []
+
+
 async def run_certin_compliance(state: InvestigationState) -> InvestigationState:
     """Generate CERT-In mandatory incident report and track 6-hour deadline."""
     logger.info("CERT-In compliance agent starting", incident_id=str(state.incident_id))
@@ -209,6 +220,24 @@ async def run_certin_compliance(state: InvestigationState) -> InvestigationState
     report = _generate_certin_report(state, category, detection_time)
     deadline = detection_time + timedelta(hours=CERTIN_DEADLINE_HOURS)
     hours_remaining = report["hours_remaining"]
+
+    # Ground the report's regulatory basis in live CERT-In advisory text
+    # (Qdrant RAG). Best-effort — degrades to the static template if the
+    # vector store is empty or unreachable.
+    rag_query = (
+        f"CERT-In {cat_info.get('code', '')} {cat_info.get('description', '')} "
+        f"mandatory reporting {state.alert_summary[:200]}"
+    )
+    advisories = await _retrieve_certin_advisories(rag_query)
+    if advisories:
+        report["rag_grounding"] = [
+            {"title": a["title"], "source": a["source"], "snippet": a["snippet"], "score": a["score"]}
+            for a in advisories
+        ]
+        state.add_finding(
+            f"CERT-In RAG: report grounded in {len(advisories)} retrieved advisory passage"
+            f"{'' if len(advisories) == 1 else 's'} — top match: {advisories[0]['title']}"
+        )
 
     state.add_finding(
         f"CERT-In MANDATORY REPORTING REQUIRED: {cat_info.get('code')} — "

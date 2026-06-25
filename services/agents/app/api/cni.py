@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.models.state import InvestigationState
+from app.models.state import InvestigationState, ProposedAction
 
 router = APIRouter(prefix="/api/v1/cni", tags=["India CNI"])
 
@@ -24,6 +24,12 @@ class CNIAlertRequest(BaseModel):
     mitre_techniques: list[str] = []
     incident_id: UUID | None = None
     tenant_id: UUID | None = None
+
+
+class DispatchRequest(BaseModel):
+    incident_id: UUID | None = None
+    tenant_id: UUID | None = None
+    actions: list[ProposedAction] = []
 
 
 def _make_state(req: CNIAlertRequest) -> InvestigationState:
@@ -122,11 +128,16 @@ async def certin_report(req: CNIAlertRequest) -> dict[str, Any]:
 
 
 @router.post("/full-assessment")
-async def full_cni_assessment(req: CNIAlertRequest) -> dict[str, Any]:
+async def full_cni_assessment(req: CNIAlertRequest, execute: bool = False) -> dict[str, Any]:
     """
     Run all five CNI agents sequentially and return a unified assessment.
 
     Pipeline: india_apt → apt_prediction → ot_risk → eol_vuln → certin
+
+    Pass ``?execute=true`` to also dispatch the proposed actions to the
+    Action Execution Service (low-risk actions auto-execute, high-blast-radius
+    actions return awaiting-approval). OT host-isolation is downgraded to
+    network containment by the dispatch bridge.
     """
     from app.agents.india_apt_agent import run_india_apt
     from app.agents.apt_prediction_agent import run_apt_prediction
@@ -141,7 +152,7 @@ async def full_cni_assessment(req: CNIAlertRequest) -> dict[str, Any]:
     state = await run_eol_vuln(state)
     state = await run_certin_compliance(state)
 
-    return {
+    response = {
         "incident_id": str(state.incident_id),
         "findings": state.findings,
         "mitre_mappings": state.mitre_mappings,
@@ -154,6 +165,40 @@ async def full_cni_assessment(req: CNIAlertRequest) -> dict[str, Any]:
             "certin_compliance": state.threat_intel.get("certin_compliance", {}),
         },
     }
+
+    if execute and state.proposed_actions:
+        from app.clients import dispatch_proposed_actions
+
+        response["execution"] = await dispatch_proposed_actions(
+            state.proposed_actions,
+            incident_id=str(state.incident_id),
+            tenant_id=str(state.tenant_id),
+        )
+
+    return response
+
+
+@router.post("/actions/dispatch")
+async def dispatch_actions(req: DispatchRequest) -> dict[str, Any]:
+    """
+    Execute a set of proposed actions via the Action Execution Service.
+
+    Maps each agent ``action_type`` to a concrete SOAR ActionType, applies
+    the OT-safety guard (no host isolation for OT/safety-critical assets),
+    and POSTs to the actions service, which runs the blast-radius gate:
+    low-risk actions execute immediately, high-blast-radius actions come back
+    as ``awaiting_approval`` for a human gate.
+    """
+    from app.clients import dispatch_proposed_actions
+
+    if not req.actions:
+        raise HTTPException(status_code=400, detail="No actions provided to dispatch")
+
+    return await dispatch_proposed_actions(
+        req.actions,
+        incident_id=str(req.incident_id or uuid4()),
+        tenant_id=str(req.tenant_id or uuid4()),
+    )
 
 
 @router.get("/apt/profiles")
@@ -168,3 +213,39 @@ async def get_eol_catalog() -> dict[str, Any]:
     """Return the EoL software catalog with amplification factors."""
     from app.agents.eol_vuln_agent import EOL_CATALOG
     return {"catalog": EOL_CATALOG}
+
+
+@router.get("/certin/rag/search")
+async def certin_rag_search(q: str, limit: int = 3) -> dict[str, Any]:
+    """Query the live CERT-In advisory RAG (Qdrant) directly.
+
+    Seed it first with ``python scripts/seed_certin_rag.py``. When the
+    collection is unseeded or Qdrant is unreachable this returns an empty
+    result set with ``available: false`` instead of erroring.
+    """
+    from app.rag import get_certin_rag
+
+    rag = get_certin_rag()
+    available = await rag.available()
+    results = await rag.search(q, limit=limit) if available else []
+    return {
+        "query": q,
+        "available": available,
+        "count": len(results),
+        "results": results,
+    }
+
+
+@router.get("/certin/rag/status")
+async def certin_rag_status() -> dict[str, Any]:
+    """Report whether the live CERT-In RAG collection is seeded and reachable."""
+    from app.rag import get_certin_rag
+    from app.rag.certin_rag import CERTIN_COLLECTION, CERTIN_EMBED_MODEL
+
+    rag = get_certin_rag()
+    return {
+        "collection": CERTIN_COLLECTION,
+        "embed_model": CERTIN_EMBED_MODEL,
+        "available": await rag.available(),
+        "seed_command": "python scripts/seed_certin_rag.py",
+    }

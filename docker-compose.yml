@@ -348,6 +348,7 @@ services:
       OT_CONNECTOR_URL: http://ot-connector:8009
       EOL_PRIORITISER_URL: http://eol-prioritiser:8010
       DIGITAL_TWIN_URL: http://digital-twin:8011
+      ACTIONS_SERVICE_URL: http://actions:8085
     networks:
       - aisoc
     restart: unless-stopped
@@ -580,6 +581,9 @@ services:
     environment:
       REDIS_URL: redis://:redis_dev_secret@redis:6379/10
       CORE_API_URL: http://api:8000
+      # Optional NVD API key raises the rate limit for live CVSS lookups.
+      # Without it the service still works (lower rate limit + offline snapshot).
+      NVD_API_KEY: ${NVD_API_KEY:-}
     depends_on:
       redis:
         condition: service_healthy
