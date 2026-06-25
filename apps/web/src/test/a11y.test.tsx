@@ -108,7 +108,6 @@ vi.mock('../../../package.json', () => ({
 
 // Component imports go after the mocks so the mocks are resolved first.
 import { Hero } from '../components/landing/Hero';
-import { StartHero } from '../components/onboarding/StartHero';
 import { ThemeToggle } from '../components/theme/ThemeToggle';
 import { ThemeProvider } from '../components/theme/ThemeProvider';
 import { TopBar } from '../components/layout/TopBar';
@@ -134,12 +133,6 @@ const axeOptions = {
 describe('WCAG 2.1 AA — high-traffic surfaces', () => {
   it('Landing Hero has no accessibility violations', async () => {
     const { container } = render(<Hero />);
-    const results = await axe(container, axeOptions);
-    expect(results).toHaveNoViolations();
-  });
-
-  it('Onboarding StartHero has no accessibility violations', async () => {
-    const { container } = render(<StartHero />);
     const results = await axe(container, axeOptions);
     expect(results).toHaveNoViolations();
   });

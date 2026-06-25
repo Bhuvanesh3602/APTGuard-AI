@@ -1,3 +1,20 @@
+# ── Load .env into os.environ before importing app modules ───────────────────
+# The investigation ledger (app.investigator.ledger) and hunt store
+# (app.hunt.store) read DATABASE_URL straight from os.environ via raw asyncpg —
+# they don't go through pydantic Settings. Launched via a bare `uvicorn` (no
+# --env-file), os.environ has no DATABASE_URL, so both silently disable
+# themselves ("ledger.disabled", "hunt.store.disabled") even though
+# services/agents/.env defines it. Load the service .env here so DB-backed
+# features connect. override=False so real environment variables always win.
+from pathlib import Path as _Path
+
+try:
+    from dotenv import load_dotenv as _load_dotenv
+
+    _load_dotenv(_Path(__file__).resolve().parents[1] / ".env")
+except Exception:  # env bootstrap must never break startup
+    pass
+
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -15,6 +32,7 @@ from app.api.investigate import router as investigate_router
 from app.api.playbooks import router as playbook_router
 from app.api.router import router
 from app.api.triage import router as triage_router
+from app.api.cni import router as cni_router
 from app.core.telemetry import instrument_app
 from app.hunt import scheduler as hunt_scheduler
 from app.hunt import store as hunt_store
@@ -126,6 +144,7 @@ app.include_router(hunts_router)  # prefix: /api/v1/hunts
 app.include_router(hunt_search_router)  # prefix: /api/v1/hunt  (search + saved)
 app.include_router(copilot_router)  # prefix: /api/v1/copilot
 app.include_router(explain_router)  # prefix: /api/v1  (POST /explain — NDJSON stream)
+app.include_router(cni_router)       # prefix: /api/v1/cni — India CNI agents
 
 
 @app.get("/health")

@@ -66,6 +66,9 @@ logger = structlog.get_logger()
 
 PARALLEL_TOPOLOGY_FLAG = "AISOC_AGENT_PARALLEL_TOPOLOGY"
 
+# CNI agent capability names
+_CNI_CAPABILITIES = {"india_apt", "apt_prediction", "ot_risk", "eol_vuln", "certin"}
+
 # Lazy imports of the four sub-agent runners so this module can be imported
 # at app startup even before the heavyweight LLM dependencies are wired.
 _SubAgentRunner = Callable[[InvestigationState], Awaitable[InvestigationState]]
@@ -214,32 +217,30 @@ _IDENTITY_RAW_FIELDS = {"username", "user", "user_email", "source_ip", "auth_met
 _CLOUD_RAW_FIELDS = {"cloud_provider", "region", "account_id", "project_id", "subscription_id", "resource_arn", "principal_arn"}
 _INSIDER_RAW_FIELDS = {"data_volume_mb", "file_count", "destination_domain", "is_off_hours", "device_type", "removable_media"}
 
+# CNI-specific keyword sets
+_OT_KEYWORDS = {"modbus", "dnp3", "scada", "plc", "hmi", "rtu", "historian", "ics", "ot attack", "substation", "power grid"}
+_EOL_KEYWORDS = {"windows xp", "windows 7", "windows server 2008", "centos 6", "centos 7", "ubuntu 16", "ubuntu 18", "eol", "end-of-life", "end of life", "iis 6", "apache 2.2", "sql server 2008", "siemens s7"}
+_APT_INDIA_KEYWORDS = {"sidecopy", "apt36", "transparent tribe", "lazarus", "volt typhoon", "certin", "cert-in", "nciipc", "spear", "crimson rat", "reverserats", "aiims", "cbse"}
+_CERTIN_KEYWORDS = {"ransomware", "data breach", "apt", "unauthorized access", "ddos", "defacement", "phishing", "scada", "power grid", "critical infra"}
+
 
 def classify_signals(state: InvestigationState) -> list[str]:
     """Pick which sub-agent capabilities should run for this alert.
 
-    Returns a deterministic, de-duplicated list of capability names in the
-    canonical sequential order: ``["phishing", "identity", "cloud",
-    "insider"]``. Empty list is impossible — when no keyword matches we
-    still fan out to all four so a multi-domain alert never silently skips
-    a relevant analyst.
-
-    The signal classifier deliberately avoids calling an LLM: by the time
-    we reach it, the auto-triage step has already paid for an LLM round
-    trip and emitted a verdict + rationale; routing on cheap keyword /
-    raw-payload presence keeps the critical-path budget at one LLM call
-    per sub-agent plus the auto-triage and responder LLM calls (total
-    six on the parallel path vs six sequentially — same token cost, half
-    the wall clock).
+    Returns a deterministic, de-duplicated list of capability names. Includes
+    the five India CNI agents (india_apt, apt_prediction, ot_risk, eol_vuln,
+    certin) alongside the original four (phishing, identity, cloud, insider).
     """
     summary = (state.alert_summary or "").lower()
     raw = state.raw_alert or {}
     rationale = " ".join(state.confidence_basis or []).lower()
     findings_blob = " ".join(state.findings or []).lower()
-    haystack = " ".join([summary, rationale, findings_blob])
+    haystack = " ".join([summary, rationale, findings_blob, str(raw)])
     raw_keys = set(raw.keys())
 
     matched: list[str] = []
+
+    # Original four capabilities
     if any(kw in haystack for kw in _PHISHING_KEYWORDS) or (raw_keys & _PHISHING_RAW_FIELDS):
         matched.append("phishing")
     if any(kw in haystack for kw in _IDENTITY_KEYWORDS) or (raw_keys & _IDENTITY_RAW_FIELDS):
@@ -249,10 +250,20 @@ def classify_signals(state: InvestigationState) -> list[str]:
     if any(kw in haystack for kw in _INSIDER_KEYWORDS) or (raw_keys & _INSIDER_RAW_FIELDS):
         matched.append("insider")
 
+    # CNI-specific agents — always run india_apt + certin on every alert;
+    # ot_risk and eol_vuln only when relevant signal is present.
+    matched.append("india_apt")
+    matched.append("certin")
+    if any(kw in haystack for kw in _OT_KEYWORDS):
+        matched.append("ot_risk")
+    if any(kw in haystack for kw in _EOL_KEYWORDS):
+        matched.append("eol_vuln")
+    # apt_prediction runs whenever mitre techniques are observed
+    if state.mitre_mappings or raw.get("mitre_techniques"):
+        matched.append("apt_prediction")
+
     if not matched:
-        # Defensive default: fan out to every capability. Sub-agents that
-        # don't see relevant signal cheaply no-op in their own LLM prompts.
-        return ["phishing", "identity", "cloud", "insider"]
+        return ["phishing", "identity", "cloud", "insider", "india_apt", "certin"]
     return matched
 
 
@@ -281,6 +292,22 @@ def _resolve_runner(name: str) -> _SubAgentRunner:
         return agents_pkg.run_cloud
     if name == "insider":
         return agents_pkg.run_insider_threat
+    # CNI agents — imported directly from their modules
+    if name == "india_apt":
+        from app.agents.india_apt_agent import run_india_apt
+        return run_india_apt
+    if name == "apt_prediction":
+        from app.agents.apt_prediction_agent import run_apt_prediction
+        return run_apt_prediction
+    if name == "ot_risk":
+        from app.agents.ot_risk_agent import run_ot_risk
+        return run_ot_risk
+    if name == "eol_vuln":
+        from app.agents.eol_vuln_agent import run_eol_vuln
+        return run_eol_vuln
+    if name == "certin":
+        from app.agents.certin_agent import run_certin_compliance
+        return run_certin_compliance
     raise KeyError(f"Unknown sub-agent capability: {name}")
 
 

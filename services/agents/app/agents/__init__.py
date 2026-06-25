@@ -40,6 +40,11 @@ from .insider_threat_agent import run_insider_threat as _run_insider_threat
 from .investigation_agent import run_investigation as _run_investigation
 from .phishing_agent import run_phishing as _run_phishing
 from .triage_agent import run_triage as _run_triage
+from .india_apt_agent import run_india_apt as _run_india_apt
+from .apt_prediction_agent import run_apt_prediction as _run_apt_prediction
+from .ot_risk_agent import run_ot_risk as _run_ot_risk
+from .eol_vuln_agent import run_eol_vuln as _run_eol_vuln
+from .certin_agent import run_certin_compliance as _run_certin_compliance
 
 if TYPE_CHECKING:
     from app.models.state import InvestigationState
@@ -73,6 +78,12 @@ __all__ = [
     "run_insider_threat",
     "run_enrichment",
     "run_investigation",
+    # India CNI agents
+    "run_india_apt",
+    "run_apt_prediction",
+    "run_ot_risk",
+    "run_eol_vuln",
+    "run_certin_compliance",
 ]
 
 
@@ -88,6 +99,13 @@ run_cloud = _run_cloud
 run_insider_threat = _run_insider_threat
 run_enrichment = _run_enrichment
 run_investigation = _run_investigation
+
+# India CNI agent entrypoints
+run_india_apt = _run_india_apt
+run_apt_prediction = _run_apt_prediction
+run_ot_risk = _run_ot_risk
+run_eol_vuln = _run_eol_vuln
+run_certin_compliance = _run_certin_compliance
 
 
 # ---------------------------------------------------------------------------

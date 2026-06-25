@@ -11,26 +11,31 @@ import { useTenant } from './TenantProvider';
 // Order matters: longer/more specific paths first so startsWith() picks
 // the right label for nested routes (e.g. /detection/catalog before /detection).
 const routeLabels: Record<string, { title: string; description: string }> = {
+  // India CNI surfaces (longer/more specific paths first so startsWith picks right)
+  '/cni/digital-twin': { title: 'Digital Twin Simulator', description: 'Attack-path simulation on an isolated network clone' },
+  '/cni/ot-topology': { title: 'OT Network Topology', description: 'Purdue-model IT/OT segmentation and protocol events' },
+  '/cni/threat-intel': { title: 'India APT Intelligence', description: 'TTP-level attribution for India CNI threat actors' },
+  '/cni/vulnerability': { title: 'EoL Risk Map', description: 'End-of-life asset CVSS amplification scoring' },
+  '/cni/remediation': { title: 'Vulnerability Prioritisation', description: 'Risk-ranked remediation queue' },
+  '/cni/correlation': { title: 'Cross-Signal Correlation', description: 'Weak-signal fusion across IT and OT' },
+  '/cni/compliance': { title: 'CERT-In Compliance', description: 'Mandatory 6-hour incident reporting' },
+  '/cni': { title: 'CNI Threat Dashboard', description: 'India Critical National Infrastructure overview' },
+  '/ueba': { title: 'Behavioural Anomaly Detection', description: 'UEBA baselines and signature-free anomaly scoring' },
+  '/detection/coverage': { title: 'MITRE ATT&CK Coverage', description: 'Technique coverage heatmap' },
   '/detection/catalog': { title: 'Detection Catalog', description: 'Curated rule packs and templates' },
   '/settings/rbac': { title: 'Roles & Permissions', description: 'Access control and team management' },
-  '/dashboard': { title: 'Dashboard', description: 'SOC overview and metrics' },
+  '/dashboard': { title: 'SOC Metrics', description: 'SOC overview and metrics' },
   '/alerts': { title: 'Alerts', description: 'Security alerts and incidents' },
+  '/queue': { title: 'Investigation Queue', description: 'Ranked triage worklist' },
   '/cases': { title: 'Cases', description: 'Incident case management' },
   '/hunt': { title: 'Threat Hunting', description: 'Proactive threat hunts and queries' },
   '/detection': { title: 'Detection Rules', description: 'SIEM detection rules and tuning' },
-  '/threat-intel': { title: 'Threat Intelligence', description: 'IOC lookup and threat feeds' },
   '/graph': { title: 'Attack Graph', description: 'Visualize relationships across alerts and assets' },
   '/copilot': { title: 'AI Copilot', description: 'AI-assisted investigation and triage' },
   '/playbooks': { title: 'Playbooks', description: 'Automated response and SOAR workflows' },
-  '/marketplace': { title: 'Marketplace', description: 'Plugins, integrations, and content packs' },
-  '/honeytokens': { title: 'Honeytokens', description: 'Deception assets and trip-wire alerts' },
-  '/purple-team': { title: 'Purple Team', description: 'Adversary emulation and detection coverage' },
   '/connectors': { title: 'Connectors', description: 'Security tool integrations' },
-  '/compliance': { title: 'Compliance', description: 'Frameworks, controls, and evidence' },
-  '/sla': { title: 'SLA Tracking', description: 'Response time targets and breach risk' },
-  '/audit': { title: 'Audit Log', description: 'Platform activity and security events' },
   '/settings': { title: 'Settings', description: 'Platform configuration' },
-  '/': { title: 'Dashboard', description: 'SOC overview and metrics' },
+  '/': { title: 'CNI Threat Dashboard', description: 'India CNI overview' },
 };
 
 interface TopBarProps {

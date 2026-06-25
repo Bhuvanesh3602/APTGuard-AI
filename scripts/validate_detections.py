@@ -223,7 +223,7 @@ def validate_rule(
     errors: list[str] = []
 
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             rule = yaml.safe_load(f)
     except yaml.YAMLError as exc:
         return [f"YAML parse error: {exc}"], None
@@ -363,9 +363,9 @@ def replay_fixture(
         return errors
 
     try:
-        with open(pos_path) as f:
+        with open(pos_path, encoding="utf-8") as f:
             pos_event = json.load(f)
-        with open(neg_path) as f:
+        with open(neg_path, encoding="utf-8") as f:
             neg_event = json.load(f)
     except (OSError, json.JSONDecodeError) as exc:
         errors.append(f"fixture load error: {exc}")
@@ -459,7 +459,7 @@ def main() -> int:
             for w in warnings:
                 print(f"    {w}")
 
-    print(f"\n{'─' * 60}")
+    print(f"\n{'=' * 60}")
     print(
         f"Validated {total} rules — {total - failed} passed, {failed} failed, "
         f"{fixture_warnings} fixture warnings"

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
 import packageJson from '../../../package.json';
 import { LiveQueueBadge } from './LiveQueueBadge';
@@ -114,9 +114,59 @@ const TwinIcon = () => (
   </svg>
 );
 
+const OTIcon = () => (
+  <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
+const ThreatIntelIcon = () => (
+  <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+  </svg>
+);
+
+const VulnIcon = () => (
+  <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+  </svg>
+);
+
+const ComplianceIcon = () => (
+  <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+  </svg>
+);
+
+const PulseIcon = () => (
+  <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 12h3l2.25 6 4.5-12 2.25 6h4.5" />
+  </svg>
+);
+
+const CorrelationIcon = () => (
+  <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <circle cx="5" cy="6" r="2" strokeWidth={1.5} />
+    <circle cx="5" cy="18" r="2" strokeWidth={1.5} />
+    <circle cx="19" cy="12" r="2" strokeWidth={1.5} />
+    <path strokeLinecap="round" strokeWidth={1.5} d="M7 6.8l10 4.4M7 17.2l10-4.4" />
+  </svg>
+);
+
+const RemediationIcon = () => (
+  <svg className="w-5 h-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+  </svg>
+);
+
+// Navigation is organised around the 5 pillars of the India CNI Cyber
+// Resilience challenge: (1) Behavioural Anomaly Detection, (2) APT Attribution
+// & Prediction, (3) Autonomous Response, (4) Vulnerability Prioritisation,
+// (5) Digital Twin — plus India-specific command + compliance surfaces.
 const navSections: NavSection[] = [
   {
-    title: 'India CNI',
+    title: 'Command Centre',
     items: [
       {
         label: 'CNI Threat Dashboard',
@@ -124,20 +174,55 @@ const navSections: NavSection[] = [
         icon: <IndiaFlagIcon />,
       },
       {
-        label: 'Digital Twin Simulator',
-        href: '/cni/digital-twin',
-        icon: <TwinIcon />,
+        label: 'SOC Metrics',
+        href: '/dashboard',
+        icon: <ChartBarIcon />,
       },
     ],
   },
   {
-    title: 'SOC Operations',
+    title: '1 · Behavioural Detection',
     items: [
       {
-        label: 'Dashboard',
-        href: '/dashboard',
+        label: 'Anomaly Detection (UEBA)',
+        href: '/ueba',
+        icon: <PulseIcon />,
+      },
+      {
+        label: 'Cross-Signal Correlation',
+        href: '/cni/correlation',
+        icon: <CorrelationIcon />,
+      },
+      {
+        label: 'Attack Graph',
+        href: '/graph',
+        icon: <GraphIcon />,
+      },
+    ],
+  },
+  {
+    title: '2 · APT Intelligence',
+    items: [
+      {
+        label: 'India APT Intelligence',
+        href: '/cni/threat-intel',
+        icon: <ThreatIntelIcon />,
+      },
+      {
+        label: 'MITRE ATT&CK Coverage',
+        href: '/detection/coverage',
         icon: <ChartBarIcon />,
       },
+      {
+        label: 'Threat Hunt',
+        href: '/hunt',
+        icon: <SearchIcon />,
+      },
+    ],
+  },
+  {
+    title: '3 · Autonomous Response',
+    items: [
       {
         label: 'Alerts',
         href: '/alerts',
@@ -156,56 +241,56 @@ const navSections: NavSection[] = [
         href: '/cases',
         icon: <FolderIcon />,
       },
-    ],
-  },
-  {
-    title: 'Detection & Hunting',
-    items: [
-      {
-        label: 'Detection Rules',
-        href: '/detection',
-        icon: <EyeIcon />,
-      },
-      {
-        label: 'MITRE ATT&CK Coverage',
-        href: '/detection/coverage',
-        icon: <ChartBarIcon />,
-      },
-      {
-        label: 'Threat Hunt',
-        href: '/hunt',
-        icon: <SearchIcon />,
-      },
-      {
-        label: 'Attack Graph',
-        href: '/graph',
-        icon: <GraphIcon />,
-      },
-    ],
-  },
-  {
-    title: 'AI & Response',
-    items: [
-      {
-        label: 'AI Copilot',
-        href: '/copilot',
-        icon: <SparklesIcon />,
-      },
-      {
-        label: 'Investigation Chat',
-        href: '/investigate',
-        icon: <SparklesIcon />,
-      },
       {
         label: 'Playbooks (SOAR)',
         href: '/playbooks',
         icon: <PlaybookIcon />,
       },
+      {
+        label: 'AI Copilot',
+        href: '/copilot',
+        icon: <SparklesIcon />,
+      },
     ],
   },
   {
-    title: 'Platform',
+    title: '4 · Vulnerability & OT',
     items: [
+      {
+        label: 'Vulnerability Prioritisation',
+        href: '/cni/remediation',
+        icon: <RemediationIcon />,
+      },
+      {
+        label: 'EoL Risk Map',
+        href: '/cni/vulnerability',
+        icon: <VulnIcon />,
+      },
+      {
+        label: 'OT Network Topology',
+        href: '/cni/ot-topology',
+        icon: <OTIcon />,
+      },
+    ],
+  },
+  {
+    title: '5 · Digital Twin',
+    items: [
+      {
+        label: 'Digital Twin Simulator',
+        href: '/cni/digital-twin',
+        icon: <TwinIcon />,
+      },
+    ],
+  },
+  {
+    title: 'Compliance & Platform',
+    items: [
+      {
+        label: 'CERT-In Compliance',
+        href: '/cni/compliance',
+        icon: <ComplianceIcon />,
+      },
       {
         label: 'Connectors',
         href: '/connectors',
@@ -217,12 +302,18 @@ const navSections: NavSection[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
     return pathname.startsWith(href);
   };
+
+  // Prefetch page on mouse enter so it's ready before click
+  const handleMouseEnter = useCallback((href: string) => {
+    router.prefetch(href);
+  }, [router]);
 
   return (
     <>
@@ -289,6 +380,8 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
+                      onMouseEnter={() => handleMouseEnter(item.href)}
+                      prefetch={true}
                       className={clsx(
                         'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150',
                         active

@@ -23,6 +23,15 @@ _driver: AsyncDriver | None = None
 async def init_neo4j() -> None:
     """Initialize the Neo4j async driver and verify connectivity."""
     global _driver
+
+    # Skip entirely when Neo4j is disabled for local/dev runs. Without this
+    # guard the driver still tries to connect and burns ~15s of exponential
+    # backoff retries on every startup before giving up — slowing boot and
+    # spamming warnings even though graph features are intentionally off.
+    if settings.AISOC_DISABLE_NEO4J:
+        logger.info("Neo4j disabled (AISOC_DISABLE_NEO4J=true) — skipping init")
+        return
+
     if _driver is not None:
         return
 

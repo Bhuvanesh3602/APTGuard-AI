@@ -20,7 +20,10 @@ export const metadata = {
 };
 
 interface InvestigatePageProps {
-  searchParams?: Record<string, string | string[] | undefined>;
+  // Next.js 15+/16: ``searchParams`` is a Promise and must be awaited before
+  // its properties are read. Reading it synchronously throws the
+  // "used `Object.keys(searchParams)` … must be unwrapped" error.
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function buildHuntUrl(
@@ -42,11 +45,13 @@ function buildHuntUrl(
   return qs ? `/hunt?${qs}` : "/hunt";
 }
 
-export default function InvestigateRedirect({
+export default async function InvestigateRedirect({
   searchParams,
 }: InvestigatePageProps) {
+  // Await the Promise before touching its keys (Next.js 16 dynamic API).
+  const resolved = searchParams ? await searchParams : undefined;
   // ``permanentRedirect`` emits a 308 so analytics + browser caches treat
   // /hunt as the canonical address. Use ``redirect`` (307) instead if we
   // ever need to flip the canonical route back.
-  permanentRedirect(buildHuntUrl(searchParams));
+  permanentRedirect(buildHuntUrl(resolved));
 }

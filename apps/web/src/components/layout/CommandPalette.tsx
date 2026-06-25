@@ -64,16 +64,26 @@ function writeRecent(path: string) {
 }
 
 const NAV_ITEMS: { label: string; href: string; keywords: string[] }[] = [
-  { label: 'Dashboard',       href: '/dashboard',    keywords: ['home', 'overview', 'metrics'] },
-  { label: 'Alerts',          href: '/alerts',       keywords: ['notifications', 'incidents'] },
-  { label: 'Cases',           href: '/cases',        keywords: ['investigations', 'tickets'] },
-  { label: 'Hunt',            href: '/hunt',         keywords: ['threat hunting', 'search', 'kql', 'esql'] },
-  { label: 'Detection Rules', href: '/detection',    keywords: ['rules', 'detections', 'sigma'] },
-  { label: 'Threat Intel',    href: '/threat-intel', keywords: ['ioc', 'feeds', 'cti'] },
-  { label: 'Attack Graph',    href: '/graph',        keywords: ['graph', 'paths', 'cytoscape'] },
-  { label: 'AI Copilot',      href: '/copilot',      keywords: ['assistant', 'chat', 'ai'] },
-  { label: 'Connectors',      href: '/connectors',   keywords: ['integrations', 'sources'] },
-  { label: 'Settings',        href: '/settings',     keywords: ['preferences', 'profile', 'tenant'] },
+  { label: 'CNI Threat Dashboard',  href: '/cni',                keywords: ['india', 'cni', 'home', 'overview'] },
+  { label: 'SOC Metrics',           href: '/dashboard',          keywords: ['metrics', 'kpi'] },
+  { label: 'Anomaly Detection (UEBA)', href: '/ueba',            keywords: ['ueba', 'behaviour', 'baseline', 'anomaly'] },
+  { label: 'Cross-Signal Correlation', href: '/cni/correlation', keywords: ['correlation', 'fusion', 'it ot', 'campaign'] },
+  { label: 'India APT Intelligence', href: '/cni/threat-intel',  keywords: ['apt', 'attribution', 'ioc', 'cti', 'apt36', 'volt typhoon'] },
+  { label: 'MITRE ATT&CK Coverage', href: '/detection/coverage', keywords: ['mitre', 'attack', 'coverage', 'ttp'] },
+  { label: 'Alerts',                href: '/alerts',             keywords: ['notifications', 'incidents'] },
+  { label: 'Investigation Queue',   href: '/queue',              keywords: ['triage', 'worklist'] },
+  { label: 'Cases',                 href: '/cases',              keywords: ['investigations', 'tickets'] },
+  { label: 'Playbooks (SOAR)',      href: '/playbooks',          keywords: ['soar', 'automation', 'response'] },
+  { label: 'Threat Hunt',           href: '/hunt',               keywords: ['threat hunting', 'search', 'kql', 'esql'] },
+  { label: 'Vulnerability Prioritisation', href: '/cni/remediation', keywords: ['cve', 'patch', 'remediation', 'vulnerability'] },
+  { label: 'EoL Risk Map',          href: '/cni/vulnerability',  keywords: ['eol', 'end of life', 'cvss'] },
+  { label: 'OT Network Topology',   href: '/cni/ot-topology',    keywords: ['ot', 'ics', 'scada', 'modbus', 'purdue'] },
+  { label: 'Digital Twin Simulator', href: '/cni/digital-twin',  keywords: ['twin', 'simulation', 'attack path'] },
+  { label: 'CERT-In Compliance',    href: '/cni/compliance',     keywords: ['certin', 'compliance', 'reporting', '6 hour'] },
+  { label: 'Attack Graph',          href: '/graph',              keywords: ['graph', 'paths', 'cytoscape'] },
+  { label: 'AI Copilot',            href: '/copilot',            keywords: ['assistant', 'chat', 'ai'] },
+  { label: 'Connectors',            href: '/connectors',         keywords: ['integrations', 'sources'] },
+  { label: 'Settings',              href: '/settings',           keywords: ['preferences', 'profile', 'tenant'] },
 ];
 
 export function CommandPalette() {

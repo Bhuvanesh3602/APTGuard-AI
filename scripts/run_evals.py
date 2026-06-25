@@ -45,7 +45,7 @@ Usage:
 Exit codes:
     0  All gates passed (or --ci not set)
     1  At least one suite below its target floor (only with --ci)
-    2  MITRE accuracy regressed by ≥ --max-regression-pp vs baseline (w2-dac)
+    2  MITRE accuracy regressed by >= --max-regression-pp vs baseline (w2-dac)
     3  Eval substrate imports failed (services/agents deps not installed)
 """
 from __future__ import annotations
@@ -81,7 +81,10 @@ from eval_telemetry import (  # type: ignore  # noqa: E402
 # agent stack lazily and degrades cleanly if it isn't available. Lives in
 # ``scripts/wet_eval.py`` to keep the wet-eval shape decoupled from the
 # substrate-suite plumbing below.
-from wet_eval import compute_wet_eval  # type: ignore  # noqa: E402
+try:
+    from wet_eval import compute_wet_eval  # type: ignore  # noqa: E402
+except ImportError:
+    compute_wet_eval = None
 
 # The substrate-suite imports below pull in the agent runtime (pydantic etc).
 # Wrap them in a try/except so ``--telemetry-only`` can still run on a bare
@@ -605,12 +608,12 @@ def _run_playbook_completion() -> dict:
     metric for diff-friendly trend tracking, but the suite passes only when
     *all* sub-gates pass:
 
-      * overall completion rate ≥ ``OVERALL_COMPLETION_FLOOR`` —
+      * overall completion rate >= ``OVERALL_COMPLETION_FLOOR`` —
         catches accidental playbook deletions / wholesale regressions;
-      * high+critical completion rate over *mapped* templates ≥
+      * high+critical completion rate over *mapped* templates >=
         ``HIGH_CRIT_MAPPED_FLOOR`` — every severe incident the pack claims
         to cover must have a containment playbook;
-      * action alignment rate ≥ ``ACTION_ALIGNMENT_FLOOR`` — among matched
+      * action alignment rate >= ``ACTION_ALIGNMENT_FLOOR`` — among matched
         incidents, the playbook's first-line steps align with the dataset's
         ``response_class`` (block / quarantine / disable / etc.);
       * no orphan playbooks (firing on zero incidents, except the documented
@@ -787,7 +790,7 @@ def main() -> None:
         help=(
             "Compare results against a saved baseline JSON (Wave 2 — w2-dac). "
             "When set, fail with exit code 2 if MITRE accuracy regresses by "
-            "≥ --max-regression-pp percentage points."
+            ">= --max-regression-pp percentage points."
         ),
     )
     parser.add_argument(
@@ -864,6 +867,12 @@ def main() -> None:
     # belt-and-braces here so a manual ``run_evals.py --wet`` invocation
     # never silently degrades).
     if args.wet:
+        if compute_wet_eval is None:
+            print(
+                "[run_evals] --wet was passed, but wet_eval module is missing from this branch.",
+                file=sys.stderr,
+            )
+            sys.exit(3)
         wet_mode = "dry_run" if args.dry_run else "live"
         if wet_mode == "live" and not os.environ.get("WET_EVAL_OPENAI_KEY"):
             print(
@@ -1137,7 +1146,7 @@ def main() -> None:
             print(
                 f"  Baseline compare: MITRE Δ = "
                 f"{cmp['deltas']['mitre_accuracy']['delta_pp']:+.2f} pp "
-                f"(allowed drop ≤ {cmp['max_regression_pp']:.2f} pp) [{arrow}]"
+                f"(allowed drop <= {cmp['max_regression_pp']:.2f} pp) [{arrow}]"
             )
         try:
             rel = args.out.relative_to(_REPO_ROOT)

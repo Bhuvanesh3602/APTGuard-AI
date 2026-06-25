@@ -31,7 +31,12 @@ const FUSION_HOST = process.env.FUSION_URL || '';
 const ENRICHMENT_HOST = process.env.ENRICHMENT_URL || 'http://localhost:8083';
 
 const nextConfig = {
-  reactStrictMode: true,
+  // Disabled in dev to remove React's double-invocation of components and
+  // mount effects (which doubled render work and fired duplicate SWR fetches
+  // on every navigation, making route transitions feel sluggish). StrictMode's
+  // value is dev-time side-effect detection; for the SOC console demo the
+  // snappier navigation is the better trade. Re-enable if hunting effect bugs.
+  reactStrictMode: false,
   transpilePackages: ['@aisoc/ui', '@aisoc/types'],
   // pnpm monorepo: anchor Turbopack at the repository root so it can resolve
   // the hoisted `next` package via apps/web/node_modules/next (symlink into

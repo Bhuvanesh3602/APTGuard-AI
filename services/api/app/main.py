@@ -1,5 +1,23 @@
 """AiSOC Core API - FastAPI Application Entry Point."""
 
+# ── Load .env into os.environ before importing any app module ────────────────
+# Pydantic-settings reads `.env` into the Settings object, but several
+# request-time gates read ENV/ENVIRONMENT straight from os.environ — notably the
+# dev-auth bypass in app.api.v1.dev_auth (current_env_from_os). When the service
+# is launched with a bare `uvicorn app.main:app` (no --env-file), os.environ
+# never receives those keys, so is_dev_mode() returns False and every
+# unauthenticated console request 401s (e.g. /api/v1/metrics/dashboard). Loading
+# the .env here keeps os.getenv() and Settings in agreement regardless of how
+# uvicorn is invoked. override=False so real environment variables always win.
+from pathlib import Path as _Path  # noqa: E402
+
+try:
+    from dotenv import load_dotenv as _load_dotenv
+
+    _load_dotenv(_Path(__file__).resolve().parents[1] / ".env")
+except Exception:  # noqa: BLE001 — env bootstrap must never break startup
+    pass
+
 import asyncio
 import hmac
 import time
