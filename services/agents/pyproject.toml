@@ -12,7 +12,7 @@ fastapi = ">=0.109,<0.137"
 uvicorn = {extras = ["standard"], version = ">=0.27,<0.50"}
 pydantic = "^2.5.0"
 pydantic-settings = "^2.1.0"
-cryptography = ">=42,<49"
+cryptography = ">=42,<50"
 langchain = ">=0.3.0,<0.4.0"
 langchain-core = ">=0.3.0,<0.4.0"
 langchain-openai = ">=0.2.0,<0.4.0"
