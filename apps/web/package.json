@@ -49,12 +49,12 @@
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.17",
     "axe-core": "^4.11.4",
-    "eslint": "^9.39.0",
-    "eslint-config-next": "16.2.7",
+    "eslint": "^10.7.0",
+    "eslint-config-next": "16.2.10",
     "jsdom": "^24.0.0",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3",
+    "postcss": "^8.5.18",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.6",
     "vitest-axe": "^0.1.0"
   }
