@@ -338,7 +338,7 @@ jobs:
         service: [enrichment, ingest, demo-producer]
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
           cache-dependency-path: services/${{ matrix.service }}/go.sum
@@ -366,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
           cache-dependency-path: packages/plugin-sdk-go/go.sum
